@@ -49,8 +49,8 @@ pub fn random_uniform(low Array, high Array, shape []int, dtype Dtype, key Array
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_uniform(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype), key.raw(),
-		def_stream()))
+	check(C.mlx_random_uniform(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype),
+		key.raw(), def_stream()))
 	return wrap_array(res)
 }
 
@@ -59,8 +59,8 @@ pub fn random_randint(low Array, high Array, shape []int, dtype Dtype, key Array
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_randint(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype), key.raw(),
-		def_stream()))
+	check(C.mlx_random_randint(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype),
+		key.raw(), def_stream()))
 	return wrap_array(res)
 }
 

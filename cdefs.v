@@ -107,8 +107,8 @@ struct C.mlx_map_string_to_array {
 
 @[typedef]
 struct C.mlx_map_string_to_array_iterator {
-	ctx voidptr
-		map_ctx voidptr
+	ctx     voidptr
+	map_ctx voidptr
 }
 
 @[typedef]
@@ -118,8 +118,8 @@ struct C.mlx_map_string_to_string {
 
 @[typedef]
 struct C.mlx_map_string_to_string_iterator {
-	ctx voidptr
-		map_ctx voidptr
+	ctx     voidptr
+	map_ctx voidptr
 }
 
 @[typedef]
@@ -129,20 +129,20 @@ struct C.mlx_node_namer {
 
 @[typedef]
 struct C.mlx_optional_dtype {
-	value int
-		has_value bool
+	value     int
+	has_value bool
 }
 
 @[typedef]
 struct C.mlx_optional_float {
-	value f32
-		has_value bool
+	value     f32
+	has_value bool
 }
 
 @[typedef]
 struct C.mlx_optional_int {
-	value int
-		has_value bool
+	value     int
+	has_value bool
 }
 
 @[typedef]

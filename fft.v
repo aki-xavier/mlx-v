@@ -40,21 +40,24 @@ pub fn (a Array) fftn(n []int, axes []int, norm FftNorm) Array {
 // ifftn returns the N-d inverse FFT over `axes`.
 pub fn (a Array) ifftn(n []int, axes []int, norm FftNorm) Array {
 	res := new_result()
-	check(C.mlx_fft_ifftn(&res, a.raw(), n.data, n.len, axes.data, axes.len, int(norm), def_stream()))
+	check(C.mlx_fft_ifftn(&res, a.raw(), n.data, n.len, axes.data, axes.len, int(norm),
+		def_stream()))
 	return wrap_array(res)
 }
 
 // rfftn returns the N-d real FFT over `axes`.
 pub fn (a Array) rfftn(n []int, axes []int, norm FftNorm) Array {
 	res := new_result()
-	check(C.mlx_fft_rfftn(&res, a.raw(), n.data, n.len, axes.data, axes.len, int(norm), def_stream()))
+	check(C.mlx_fft_rfftn(&res, a.raw(), n.data, n.len, axes.data, axes.len, int(norm),
+		def_stream()))
 	return wrap_array(res)
 }
 
 // irfftn returns the N-d inverse real FFT over `axes`.
 pub fn (a Array) irfftn(n []int, axes []int, norm FftNorm) Array {
 	res := new_result()
-	check(C.mlx_fft_irfftn(&res, a.raw(), n.data, n.len, axes.data, axes.len, int(norm), def_stream()))
+	check(C.mlx_fft_irfftn(&res, a.raw(), n.data, n.len, axes.data, axes.len, int(norm),
+		def_stream()))
 	return wrap_array(res)
 }
 

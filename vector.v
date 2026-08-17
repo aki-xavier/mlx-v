@@ -19,7 +19,7 @@ pub fn new_vector_array() VectorArray {
 pub fn array_vector(arrays []Array) VectorArray {
 	vec := C.mlx_vector_array_new()
 	for a in arrays {
-		C.mlx_vector_array_append_value(vec, a.ctx)
+		C.mlx_vector_array_append_value(vec, a.raw())
 	}
 	return VectorArray{
 		ctx: vec
@@ -40,9 +40,7 @@ pub fn (v VectorArray) len() int {
 pub fn (v VectorArray) get(idx int) Array {
 	res := C.mlx_array_new()
 	C.mlx_vector_array_get(&res, v.ctx, usize(idx))
-	return Array{
-		ctx: res
-	}
+	return wrap_array(res)
 }
 
 // to_slice copies the vector into a V slice of arrays.

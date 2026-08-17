@@ -175,9 +175,6 @@ struct C.mlx_vector_vector_array {
 	ctx voidptr
 }
 
-@[typedef]
-struct C.FILE {}
-
 // C function declarations.
 
 fn C.mlx_string_new() C.mlx_string
@@ -758,8 +755,6 @@ fn C.mlx_node_namer_new() C.mlx_node_namer
 fn C.mlx_node_namer_free(namer C.mlx_node_namer) int
 fn C.mlx_node_namer_set_name(namer C.mlx_node_namer, arr C.mlx_array, name &char) int
 fn C.mlx_node_namer_get_name(name &&char, namer C.mlx_node_namer, arr C.mlx_array) int
-fn C.mlx_export_to_dot(os &C.FILE, namer C.mlx_node_namer, outputs C.mlx_vector_array) int
-fn C.mlx_print_graph(os &C.FILE, namer C.mlx_node_namer, outputs C.mlx_vector_array) int
 fn C.mlx_metal_is_available(res &bool) int
 fn C.mlx_metal_start_capture(path &char) int
 fn C.mlx_metal_stop_capture() int

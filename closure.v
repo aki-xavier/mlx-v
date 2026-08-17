@@ -56,7 +56,7 @@ fn closure_thunk(vres &C.mlx_vector_array, input C.mlx_vector_array, payload voi
 	}
 	out := C.mlx_vector_array_new()
 	for y in ys {
-		C.mlx_vector_array_append_value(out, y.ctx)
+		C.mlx_vector_array_append_value(out, y.raw())
 		y.free()
 	}
 	C.mlx_vector_array_set(vres, out)
@@ -71,9 +71,7 @@ fn vector_to_arrays(input C.mlx_vector_array) []Array {
 	for i in 0 .. n {
 		a := C.mlx_array_new()
 		C.mlx_vector_array_get(&a, input, usize(i))
-		xs << Array{
-			ctx: a
-		}
+		xs << wrap_array(a)
 	}
 	return xs
 }
@@ -82,7 +80,7 @@ fn vector_to_arrays(input C.mlx_vector_array) []Array {
 fn arrays_to_vector(xs []Array) C.mlx_vector_array {
 	v := C.mlx_vector_array_new()
 	for x in xs {
-		C.mlx_vector_array_append_value(v, x.ctx)
+		C.mlx_vector_array_append_value(v, x.raw())
 	}
 	return v
 }

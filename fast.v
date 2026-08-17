@@ -5,19 +5,15 @@ module mlx
 // layer_norm applies layer normalisation.  `weight`/`bias` may be empty.
 pub fn (a Array) layer_norm(weight Array, bias Array, eps f32) Array {
 	res := new_result()
-	check(C.mlx_fast_layer_norm(&res, a.ctx, weight.ctx, bias.ctx, eps, def_stream()))
-	return Array{
-		ctx: res
-	}
+	check(C.mlx_fast_layer_norm(&res, a.raw(), weight.raw(), bias.raw(), eps, def_stream()))
+	return wrap_array(res)
 }
 
 // rms_norm applies RMS normalisation.  `weight` may be empty.
 pub fn (a Array) rms_norm(weight Array, eps f32) Array {
 	res := new_result()
-	check(C.mlx_fast_rms_norm(&res, a.ctx, weight.ctx, eps, def_stream()))
-	return Array{
-		ctx: res
-	}
+	check(C.mlx_fast_rms_norm(&res, a.raw(), weight.raw(), eps, def_stream()))
+	return wrap_array(res)
 }
 
 // scaled_dot_product_attention computes attention with a fused kernel.
@@ -25,11 +21,9 @@ pub fn (a Array) rms_norm(weight Array, eps f32) Array {
 // "additive" or "masked".
 pub fn scaled_dot_product_attention(queries Array, keys Array, values Array, scale f32, mask_mode string, mask_arr Array, sinks Array) Array {
 	res := new_result()
-	check(C.mlx_fast_scaled_dot_product_attention(&res, queries.ctx, keys.ctx, values.ctx, scale,
-		mask_mode.str, mask_arr.ctx, sinks.ctx, def_stream()))
-	return Array{
-		ctx: res
-	}
+	check(C.mlx_fast_scaled_dot_product_attention(&res, queries.raw(), keys.raw(), values.raw(), scale,
+		mask_mode.str, mask_arr.raw(), sinks.raw(), def_stream()))
+	return wrap_array(res)
 }
 
 // optional_float builds the C optional<float> used by the rope kernels.
@@ -51,11 +45,9 @@ pub fn no_optional_float() C.mlx_optional_float {
 // rope applies rotary position embeddings.  `freqs` may be empty.
 pub fn (a Array) rope(dims int, traditional bool, base C.mlx_optional_float, scale f32, offset int, freqs Array) Array {
 	res := new_result()
-	check(C.mlx_fast_rope(&res, a.ctx, dims, traditional, base, scale, offset, freqs.ctx,
+	check(C.mlx_fast_rope(&res, a.raw(), dims, traditional, base, scale, offset, freqs.raw(),
 		def_stream()))
-	return Array{
-		ctx: res
-	}
+	return wrap_array(res)
 }
 
 // MetalKernelConfig configures a custom Metal kernel launch.

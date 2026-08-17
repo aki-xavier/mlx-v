@@ -14,7 +14,10 @@ module mlx
 
 // Homebrew keeps bdw-gc (Boehm GC, which V itself links) keg-only; give the
 // linker the path so any V program linking this module resolves `-lgc`.
+// We also link -lgc explicitly so that V's tcc fast-path (which does not add
+// the GC library) can resolve the Boehm finalizer symbols used in gc.v.
 #flag darwin -L/opt/homebrew/opt/bdw-gc/lib
+#flag -lgc
 
 #flag -I/opt/homebrew/include
 #flag -L/opt/homebrew/opt/mlx-c/lib
@@ -91,6 +94,9 @@ fn C.mlx_v_set_force_cpu(v int)
 fn C.mlx_v_get_force_cpu() int
 fn C.mlx_v_f16_to_f32(h u16) f32
 fn C.mlx_v_bf16_to_f32(h u16) f32
+fn C.mlx_v_note_box_alloc()
+fn C.mlx_v_note_box_free()
+fn C.mlx_v_get_live_boxes() int
 
 // Accessors for complex64 / float16 / bfloat16 (declared manually: the C
 // pointer types use `voidptr` to avoid `_Complex`/`__fp16` ABI type clashes).

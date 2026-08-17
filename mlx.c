@@ -7,8 +7,39 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <gc/gc.h>
+
 static char mlx_v_error_buf[2048];
 static int mlx_v_force_cpu = 0;
+static int mlx_v_live_boxes = 0;
+
+void mlx_v_note_box_alloc(void) {
+    mlx_v_live_boxes++;
+}
+
+void mlx_v_note_box_free(void) {
+    if (mlx_v_live_boxes > 0) {
+        mlx_v_live_boxes--;
+    }
+}
+
+int mlx_v_get_live_boxes(void) {
+    return mlx_v_live_boxes;
+}
+
+/* Boehm GC wrappers (kept out of the V-facing declarations to avoid
+ * conflicting with the GC_* prototypes that <gc/gc.h> already provides). */
+void mlx_v_register_finalizer(void *obj, void (*fn)(void *, void *)) {
+    GC_register_finalizer(obj, fn, 0, 0, 0);
+}
+
+void *mlx_v_gc_malloc(size_t n) {
+    return GC_MALLOC(n);
+}
+
+void mlx_v_gc_collect(void) {
+    GC_gcollect();
+}
 
 /* IEEE 754 half (float16) -> float32 */
 float mlx_v_f16_to_f32(uint16_t h) {

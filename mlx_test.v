@@ -7,6 +7,29 @@ fn test_version() {
 	assert v.len > 0
 }
 
+// alloc_and_drop creates an array and lets it go out of scope (no explicit
+// free), so the GC should reclaim it.
+fn alloc_and_drop(i int) {
+	x := array_f32([f32(i)], [1])
+	assert x.size() == 1
+}
+
+fn test_gc() {
+	base := live_arrays()
+	for i in 0 .. 200 {
+		alloc_and_drop(i)
+	}
+	gc_collect()
+	// conservative GC is lazy; allow a small slack, but most must be reclaimed
+	assert live_arrays() - base < 10
+
+	// explicit free() decrements immediately
+	a := array_f32([f32(1), 2], [2])
+	before := live_arrays()
+	a.free()
+	assert live_arrays() == before - 1
+}
+
 fn test_array_create_and_props() {
 	a := array_f32([f32(1), 2, 3, 4], [2, 2])
 	defer {

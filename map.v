@@ -23,7 +23,7 @@ pub fn (m &MapStringToArray) free() {
 pub fn (m MapStringToArray) insert(key string, value Array) {
 	setup()
 	begin_op()
-	check(C.mlx_map_string_to_array_insert(m.ctx, key.str, value.ctx))
+	check(C.mlx_map_string_to_array_insert(m.ctx, key.str, value.raw()))
 }
 
 // get returns the array at `key` (a new reference the caller should free).
@@ -32,9 +32,7 @@ pub fn (m MapStringToArray) get(key string) Array {
 	setup()
 	begin_op()
 	check(C.mlx_map_string_to_array_get(&res, m.ctx, key.str))
-	return Array{
-		ctx: res
-	}
+	return wrap_array(res)
 }
 
 // MapStringToString is a string -> string map (safetensors metadata).

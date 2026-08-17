@@ -8,16 +8,14 @@ pub fn load(file string) Array {
 	begin_op()
 	res := C.mlx_array_new()
 	check(C.mlx_load(&res, file.str, def_stream()))
-	return Array{
-		ctx: res
-	}
+	return wrap_array(res)
 }
 
 // save writes `a` to `file` (format chosen by extension).
 pub fn save(file string, a Array) {
 	setup()
 	begin_op()
-	check(C.mlx_save(file.str, a.ctx))
+	check(C.mlx_save(file.str, a.raw()))
 }
 
 // load_safetensors reads a safetensors file, returning tensors + metadata.
@@ -97,9 +95,7 @@ pub fn (g Gguf) get_array(key string) Array {
 	setup()
 	begin_op()
 	check(C.mlx_io_gguf_get_array(&res, g.ctx, key.str))
-	return Array{
-		ctx: res
-	}
+	return wrap_array(res)
 }
 
 // metadata_string returns a string metadata entry.
@@ -117,7 +113,7 @@ pub fn (g Gguf) metadata_string(key string) string {
 pub fn (g Gguf) set_array(key string, arr Array) {
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_set_array(g.ctx, key.str, arr.ctx))
+	check(C.mlx_io_gguf_set_array(g.ctx, key.str, arr.raw()))
 }
 
 // set_metadata_string stores a string metadata entry.

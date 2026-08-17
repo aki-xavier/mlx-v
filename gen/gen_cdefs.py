@@ -125,8 +125,8 @@ ENUMS = {
     "mlx_fft_norm",
 }
 
-# Additional typedef'd types available in V (FILE* support).
-EXTRA_TYPES = ["FILE"]
+# Additional typedef'd types available in V.
+EXTRA_TYPES = []
 
 
 def map_type(ty: str) -> str:
@@ -179,6 +179,9 @@ SKIP = {
     "mlx_closure_custom_jvp_new_func_payload",
     "mlx_closure_custom_vmap_new_func",
     "mlx_closure_custom_vmap_new_func_payload",
+    # graph_utils.h (need a C FILE*; V's os module owns C.FILE)
+    "mlx_export_to_dot",
+    "mlx_print_graph",
     # array.h managed-data constructors (function-pointer dtor params)
     "mlx_array_new_data_managed",
     "mlx_array_new_data_managed_payload",
@@ -323,10 +326,6 @@ def build():
             lines.append("\tctx voidptr")
             lines.append("}")
         lines.append("")
-
-    lines.append("@[typedef]")
-    lines.append("struct C.FILE {}")
-    lines.append("")
 
     lines.append("// C function declarations.")
     lines.append("")

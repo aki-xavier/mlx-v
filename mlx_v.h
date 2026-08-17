@@ -4,6 +4,7 @@
 #ifndef MLX_V_HELPERS_H
 #define MLX_V_HELPERS_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -18,6 +19,14 @@ int mlx_v_get_force_cpu(void);
 
 float mlx_v_f16_to_f32(uint16_t h);
 float mlx_v_bf16_to_f32(uint16_t h);
+
+void mlx_v_note_box_alloc(void);
+void mlx_v_note_box_free(void);
+int mlx_v_get_live_boxes(void);
+
+void mlx_v_register_finalizer(void *obj, void (*fn)(void *, void *));
+void mlx_v_gc_collect(void);
+void *mlx_v_gc_malloc(size_t n);
 
 #ifdef __cplusplus
 }

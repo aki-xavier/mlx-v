@@ -12,12 +12,13 @@ module mlx
 
 // --- C toolchain wiring -----------------------------------------------------
 
-// Homebrew keeps bdw-gc (Boehm GC, which V itself links) keg-only; give the
-// linker the path so any V program linking this module resolves `-lgc`.
-// We also link -lgc explicitly so that V's tcc fast-path (which does not add
-// the GC library) can resolve the Boehm finalizer symbols used in gc.v.
-#flag darwin -L/opt/homebrew/opt/bdw-gc/lib
-#flag -lgc
+// The GC-backed `Array` (see gc.v) relies on V's Boehm collector: V's own heap
+// allocations (slices holding `Array` values) must live on the Boehm heap so
+// the conservative scan can find the `ArrayBox` pointers stored in them.
+// Without `-gc boehm` those pointers live on the malloc heap, Boehm never sees
+// them, and the finalizers run too early (use-after-free).  `-gc boehm` is V's
+// default mode and provides the bundled bdw-gc + GC_THREADS defines, so no
+// extra -lgc / -L flags are needed here.
 
 #flag -I/opt/homebrew/include
 #flag -L/opt/homebrew/opt/mlx-c/lib

@@ -35,10 +35,13 @@ fn main() {
   kernels, and `.npy` / `.safetensors` / `.gguf` I/O.
 - **All dtypes read back** — float32/64, int, bool, and also `complex64`,
   `float16` and `bfloat16` accessors.
-- **Automatic memory management** — MLX handles are attached to the Boehm GC and
+- **Automatic memory management** — MLX handles are attached to V's Boehm GC and
   reclaimed once the last `Array` referencing them goes away, so `free()` is
   optional.  `mlx.gc_collect()` forces a collection cycle and
   `mlx.live_arrays()` reports the number of live handles.
+  **Requires V's Boehm collector (`v -gc boehm`, the default mode)** — the
+  conservative scan must be able to see the `Array` boxes inside V's heap
+  allocations, which only happens when V's own heap is Boehm-managed.
 - **Proper error handling** — MLX errors become V panics with the original
   message (instead of MLX's default `abort()`).
 
@@ -78,10 +81,11 @@ Run the test suite:
 v test .
 ```
 
-> **Note on the linker:** the Homebrew `bdw-gc` (Boehm GC, linked by V itself)
-> is keg-only on Apple Silicon, so the module adds
-> `-L/opt/homebrew/opt/bdw-gc/lib` automatically (`#flag darwin ...`). This is
-> harmless on machines where the flag path does not exist.
+> **Note on the GC:** the automatic handle reclamation relies on V's Boehm
+> collector, so consumers must compile with `-gc boehm` (which is V's default
+> mode — no flag is normally needed).  V's bundled bdw-gc supplies the
+> `GC_MALLOC` / `GC_register_finalizer` symbols used by `gc.v`, so the module
+> does not link a separate `-lgc`.
 
 ## API overview
 

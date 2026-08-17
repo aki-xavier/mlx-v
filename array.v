@@ -12,9 +12,13 @@ mut:
 //
 // The underlying MLX handle is reclaimed automatically by the GC once the last
 // `Array` referencing it goes away.  Call `free()` to release it deterministically.
+//
+// `box` defaults to nil so that `Array{}` is a valid zero value (V requires
+// reference fields to be initialised otherwise); a nil-box Array must be
+// assigned a real array before any operation reads `raw()`.
 pub struct Array {
 mut:
-	box &ArrayBox
+	box &ArrayBox = unsafe { nil }
 }
 
 // raw returns the underlying MLX handle (low level).

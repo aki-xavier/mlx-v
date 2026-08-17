@@ -104,7 +104,7 @@ fn C.mlx_array_data_bfloat16(arr C.mlx_array) voidptr
 // c_error_handler records the message passed by the C runtime.  MLX's default
 // handler would `abort()` the process; installing this one lets us turn errors
 // into ordinary V panics instead.
-fn c_error_handler(msg &char, data voidptr) {
+fn c_error_handler(msg &char, _data voidptr) {
 	C.mlx_v_set_error(msg)
 }
 

@@ -63,14 +63,14 @@ fn test_unary_ops() {
 	defer {
 		a.free()
 	}
-	sqrt := a.sqrt()
-	exp := a.exp()
+	sq := a.sqrt()
+	ex := a.exp()
 	defer {
-		sqrt.free()
-		exp.free()
+		sq.free()
+		ex.free()
 	}
-	assert sqrt.data_f32() == [f32(1), 2, 3, 4]
-	assert math.abs(f64(exp.data_f32()[0]) - 2.718281828) < 1e-5
+	assert sq.data_f32() == [f32(1), 2, 3, 4]
+	assert math.abs(f64(ex.data_f32()[0]) - 2.718281828) < 1e-5
 }
 
 fn test_reductions() {

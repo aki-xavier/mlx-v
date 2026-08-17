@@ -5,13 +5,14 @@ module mlx
 // --- internal helpers --------------------------------------------------------
 
 // def_stream returns the raw default stream handle (GPU if available, unless
-// `use_cpu()` forced the CPU backend).
+// `use_cpu()` forced the CPU backend).  The wrapper is cached (mlx.c) because
+// mlx_default_*_stream_new() heap-allocates a new wrapper on every call.
 @[inline]
 fn def_stream() C.mlx_stream {
 	if C.mlx_v_get_force_cpu() != 0 || !gpu_available() {
-		return C.mlx_default_cpu_stream_new()
+		return C.mlx_v_cached_cpu_stream()
 	}
-	return C.mlx_default_gpu_stream_new()
+	return C.mlx_v_cached_gpu_stream()
 }
 
 // new_result prepares error state and returns an empty result array handle.

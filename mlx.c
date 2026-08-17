@@ -1,17 +1,21 @@
 /*
  * mlx.c — tiny C helpers for the mlx V bindings.
  *
- * Keeps the last MLX error message and a "force CPU" flag in C static storage
- * so that the V module does not need mutable globals (`-enable-globals`).
+ * Keeps the last MLX error message, a "force CPU" flag, and the cached default
+ * streams in C static storage so that the V module does not need mutable
+ * globals (`-enable-globals`).
  */
 #include <stdint.h>
 #include <string.h>
 
 #include <gc/gc.h>
+#include <mlx/c/mlx.h>
 
 static char mlx_v_error_buf[2048];
 static int mlx_v_force_cpu = 0;
 static int mlx_v_live_boxes = 0;
+static mlx_stream mlx_v_cpu_stream = {0};
+static mlx_stream mlx_v_gpu_stream = {0};
 
 void mlx_v_note_box_alloc(void) {
     mlx_v_live_boxes++;
@@ -25,6 +29,23 @@ void mlx_v_note_box_free(void) {
 
 int mlx_v_get_live_boxes(void) {
     return mlx_v_live_boxes;
+}
+
+/* Cached default streams.  mlx_default_*_stream_new() heap-allocates a new
+ * Stream wrapper on every call, and the wrappers are never freed by the V
+ * bindings, so caching one wrapper per device avoids a per-op allocation leak. */
+mlx_stream mlx_v_cached_cpu_stream(void) {
+    if (!mlx_v_cpu_stream.ctx) {
+        mlx_v_cpu_stream = mlx_default_cpu_stream_new();
+    }
+    return mlx_v_cpu_stream;
+}
+
+mlx_stream mlx_v_cached_gpu_stream(void) {
+    if (!mlx_v_gpu_stream.ctx) {
+        mlx_v_gpu_stream = mlx_default_gpu_stream_new();
+    }
+    return mlx_v_gpu_stream;
 }
 
 /* Boehm GC wrappers (kept out of the V-facing declarations to avoid

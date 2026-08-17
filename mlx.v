@@ -98,6 +98,8 @@ fn C.mlx_v_bf16_to_f32(h u16) f32
 fn C.mlx_v_note_box_alloc()
 fn C.mlx_v_note_box_free()
 fn C.mlx_v_get_live_boxes() int
+fn C.mlx_v_cached_cpu_stream() C.mlx_stream
+fn C.mlx_v_cached_gpu_stream() C.mlx_stream
 
 // Accessors for complex64 / float16 / bfloat16 (declared manually: the C
 // pointer types use `voidptr` to avoid `_Complex`/`__fp16` ABI type clashes).

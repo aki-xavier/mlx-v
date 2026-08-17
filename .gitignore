@@ -1,3 +1,7 @@
+# V toolchain / local dev
+.vmodules/
+v.mod.tmp
+
 # Prerequisites
 *.d
 

@@ -54,6 +54,19 @@ fn main() {
   `/opt/homebrew/opt/mlx-c/lib`.
 - [V](https://vlang.io) 0.5.x (`brew install vlang`).
 
+The module searches `/opt/homebrew/include` and `/opt/homebrew/opt/mlx-c/lib`
+by default (Homebrew on Apple Silicon). For Intel Homebrew (`/usr/local`),
+Linux/CUDA, or a custom build, set the `MLX_INCLUDE_DIR` and `MLX_LIB_DIR`
+environment variables before compiling — e.g.
+
+```sh
+export MLX_INCLUDE_DIR=/usr/local/include
+export MLX_LIB_DIR=/usr/local/opt/mlx-c/lib
+```
+
+The binding generator (`gen/gen_cdefs.py`) honours the same `MLX_INCLUDE_DIR`
+variable.
+
 ## Install
 
 The module is a standard V module (`v.mod` declares `name: 'mlx'`). Put it on
@@ -160,7 +173,7 @@ println(mlx.live_arrays())     // number of live handles
 | `transforms.v` | `value_and_grad` / `jvp` / `vjp` / `compile` / `checkpoint` |
 | `device.v`, `stream.v`, `vector.v`, `map.v` | supporting types |
 | `random.v`, `linalg.v`, `fft.v`, `fast.v`, `io.v`, `memory.v`, `compile.v` | domain wrappers |
-| `mlx.c`, `mlx_v.h` | tiny C helpers (error buffer, CPU flag, half→float, GC) |
+| `mlx.c`, `mlx_v.h` | tiny C helpers (thread-local error buffer, CPU flag, stream cache, half→float, GC) |
 
 ## Regenerating the raw bindings
 
@@ -180,3 +193,14 @@ python3 gen/gen_cdefs.py
 - float16/bfloat16 arrays are read back as `f32` (via the bit-exact
   `mlx_v_f16_to_f32` / `mlx_v_bf16_to_f32` helpers); writing raw half data from
   V is not exposed (use `astype(.float16)` from a float32 array instead).
+- **`free()` is idempotent** on every handle type (`Array`, `Device`, `Stream`,
+  `Closure`, maps, GGUF, kernels, vectors); calling it twice is a no-op.
+- **Thread safety** — the error buffer is thread-local and the internal
+  counters/stream cache are synchronised, so concurrent ops on different
+  threads get their own error messages.  However, MLX's error handler, default
+  device/stream and `use_cpu()`/`use_gpu()` are process-wide, so those
+  controls affect every thread.
+- **Panics in autograd functions** — an MLX error inside a `fn` passed to
+  `value_and_grad`/`jvp`/`vjp`/`compile`/`checkpoint` panics, and that panic
+  escapes MLX's C callback boundary (no C++ stack unwinding), aborting the
+  process.  Keep those functions free of failing ops.

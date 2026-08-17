@@ -24,6 +24,9 @@ mut:
 // raw returns the underlying MLX handle (low level).
 @[inline]
 pub fn (a Array) raw() C.mlx_array {
+	if isnil(a.box) {
+		panic('mlx: Array is uninitialised (zero value); build it with array_f32/zeros/empty()/… before using it')
+	}
 	return a.box.ctx
 }
 

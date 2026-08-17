@@ -3,7 +3,8 @@ module mlx
 // Device represents an MLX execution device (a CPU or a specific GPU).
 pub struct Device {
 mut:
-	ctx C.mlx_device
+	ctx   C.mlx_device
+	freed bool
 }
 
 // device returns a new device of the given `dtype` and `index`.
@@ -33,9 +34,12 @@ pub fn device_count(dtype DeviceType) int {
 	return n
 }
 
-// free releases the device.
-pub fn (d &Device) free() {
-	C.mlx_device_free(d.ctx)
+// free releases the device (idempotent).
+pub fn (mut d Device) free() {
+	if !d.freed {
+		d.freed = true
+		C.mlx_device_free(d.ctx)
+	}
 }
 
 // str returns a human-readable description of the device.

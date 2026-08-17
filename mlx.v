@@ -7,8 +7,9 @@ module mlx
 // `cdefs.v`; this file adds the V-flavoured types, error handling and small
 // helper functions.
 //
-// Build note: the module needs mutable module-level state for the MLX error
-// message, so compile consumers with `v -enable-globals ...`.
+// All mutable state (error buffer, force-CPU flag, stream cache) lives in the
+// tiny C helpers in `mlx.c`/`mlx_v.h`, so no V module-level globals are needed
+// and consumers do not need `-enable-globals`.
 
 // --- C toolchain wiring -----------------------------------------------------
 
@@ -20,12 +21,18 @@ module mlx
 // default mode and provides the bundled bdw-gc + GC_THREADS defines, so no
 // extra -lgc / -L flags are needed here.
 
+// mlx-c include/library search paths.  Homebrew (Apple Silicon) is the
+// default.  For Intel Homebrew, Linux/CUDA, or a custom build, set
+// `MLX_INCLUDE_DIR` and `MLX_LIB_DIR` (the extra -I/-L flags are harmless when
+// unset).
 #flag -I/opt/homebrew/include
 #flag -L/opt/homebrew/opt/mlx-c/lib
+#flag -I$MLX_INCLUDE_DIR
+#flag -L$MLX_LIB_DIR
 #flag -lmlxc
 #include "mlx/c/mlx.h"
 
-// Tiny C helpers (error buffer + cpu flag).
+// Tiny C helpers (thread-local error buffer, force-CPU flag, stream cache, GC).
 #include "@VMODROOT/mlx_v.h"
 #flag @VMODROOT/mlx.c
 
@@ -180,7 +187,7 @@ pub fn gpu_available() bool {
 // use_cpu makes subsequent ops run on the CPU (some linalg ops are CPU-only).
 pub fn use_cpu() {
 	C.mlx_v_set_force_cpu(1)
-	d := device(.cpu, 0)
+	mut d := device(.cpu, 0)
 	d.set_default()
 	d.free()
 }
@@ -189,7 +196,7 @@ pub fn use_cpu() {
 pub fn use_gpu() {
 	C.mlx_v_set_force_cpu(0)
 	if gpu_available() {
-		d := device(.gpu, 0)
+		mut d := device(.gpu, 0)
 		d.set_default()
 		d.free()
 	}

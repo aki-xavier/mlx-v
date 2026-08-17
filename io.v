@@ -42,7 +42,8 @@ pub fn save_safetensors(file string, tensors MapStringToArray, metadata MapStrin
 // Gguf wraps an MLX GGUF object.
 pub struct Gguf {
 mut:
-	ctx C.mlx_io_gguf
+	ctx   C.mlx_io_gguf
+	freed bool
 }
 
 // load_gguf reads a GGUF file.
@@ -63,8 +64,11 @@ pub fn new_gguf() Gguf {
 	}
 }
 
-pub fn (g &Gguf) free() {
-	C.mlx_io_gguf_free(g.ctx)
+pub fn (mut g Gguf) free() {
+	if !g.freed {
+		g.freed = true
+		C.mlx_io_gguf_free(g.ctx)
+	}
 }
 
 // save writes the GGUF object to `file`.
@@ -80,7 +84,7 @@ pub fn (g Gguf) keys() []string {
 	setup()
 	begin_op()
 	check(C.mlx_io_gguf_get_keys(&v, g.ctx))
-	vs := VectorString{
+	mut vs := VectorString{
 		ctx: v
 	}
 	defer {

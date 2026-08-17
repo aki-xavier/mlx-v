@@ -934,7 +934,7 @@ pub fn (a Array) kron(b Array) Array {
 // einsum evaluates an Einstein summation over the operands.
 pub fn einsum(subscripts string, operands []Array) Array {
 	res := new_result()
-	vec := array_vector(operands)
+	mut vec := array_vector(operands)
 	defer {
 		vec.free()
 	}
@@ -992,7 +992,7 @@ pub fn where(condition Array, x Array, y Array) Array {
 // concatenate joins `arrays` along `axis`.
 pub fn concatenate(arrays []Array, axis int) Array {
 	res := new_result()
-	vec := array_vector(arrays)
+	mut vec := array_vector(arrays)
 	defer {
 		vec.free()
 	}
@@ -1003,7 +1003,7 @@ pub fn concatenate(arrays []Array, axis int) Array {
 // stack joins `arrays` along a new `axis`.
 pub fn stack(arrays []Array, axis int) Array {
 	res := new_result()
-	vec := array_vector(arrays)
+	mut vec := array_vector(arrays)
 	defer {
 		vec.free()
 	}

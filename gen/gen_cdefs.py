@@ -7,7 +7,10 @@ import os
 import re
 import sys
 
-INC = "/opt/homebrew/include/mlx/c"
+# Location of the installed mlx-c headers.  Defaults to Homebrew (Apple
+# Silicon); override with the MLX_INCLUDE_DIR environment variable (the same
+# variable the module's #flag lines honour) for Intel Homebrew or Linux.
+INC = os.environ.get("MLX_INCLUDE_DIR", "/opt/homebrew/include/mlx/c")
 OUT = os.path.join(os.path.dirname(__file__), "..", "cdefs.v")
 
 # Headers to process, in dependency order.

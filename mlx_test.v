@@ -188,6 +188,9 @@ fn test_random() {
 
 fn test_linalg_inv_cpu() {
 	use_cpu()
+	defer {
+		use_gpu()
+	}
 	i := array_f32([f32(4), 7, 2, 6], [2, 2])
 	defer {
 		i.free()
@@ -199,7 +202,6 @@ fn test_linalg_inv_cpu() {
 	d := inv.data_f32()
 	assert math.abs(f64(d[0]) - 0.6) < 1e-5
 	assert math.abs(f64(d[1]) + 0.7) < 1e-5
-	use_gpu()
 }
 
 fn test_arange_linspace() {
@@ -227,7 +229,7 @@ fn test_value_and_grad() {
 	defer {
 		x.free()
 	}
-	vag := value_and_grad(sum_of_squares, [0])
+	mut vag := value_and_grad(sum_of_squares, [0])
 	defer {
 		vag.free()
 	}
@@ -273,13 +275,13 @@ fn test_compile_checkpoint() {
 		x.free()
 	}
 
-	cc := compile(sum_of_squares, false)
+	mut cc := compile(sum_of_squares, false)
 	vals := cc.apply([x])
 	assert vals[0].item_f32() == 30.0
 	vals[0].free()
 	cc.free()
 
-	cp := checkpoint(sum_of_squares)
+	mut cp := checkpoint(sum_of_squares)
 	vals2 := cp.apply([x])
 	assert vals2[0].item_f32() == 30.0
 	vals2[0].free()

@@ -5,7 +5,8 @@ module mlx
 // VectorArray is a growable list of MLX arrays.
 pub struct VectorArray {
 mut:
-	ctx C.mlx_vector_array
+	ctx   C.mlx_vector_array
+	freed bool
 }
 
 // new_vector_array returns an empty vector of arrays.
@@ -26,9 +27,12 @@ pub fn array_vector(arrays []Array) VectorArray {
 	}
 }
 
-// free releases the vector (but not the arrays it holds).
-pub fn (v &VectorArray) free() {
-	C.mlx_vector_array_free(v.ctx)
+// free releases the vector (but not the arrays it holds); idempotent.
+pub fn (mut v VectorArray) free() {
+	if !v.freed {
+		v.freed = true
+		C.mlx_vector_array_free(v.ctx)
+	}
 }
 
 // len returns the number of arrays.
@@ -55,7 +59,7 @@ pub fn (v VectorArray) to_slice() []Array {
 
 // array_vector_to_slice converts a raw vector into a V slice of arrays.
 fn array_vector_to_slice(vec C.mlx_vector_array) []Array {
-	v := VectorArray{
+	mut v := VectorArray{
 		ctx: vec
 	}
 	defer {
@@ -67,11 +71,15 @@ fn array_vector_to_slice(vec C.mlx_vector_array) []Array {
 // VectorInt is a growable list of ints.
 pub struct VectorInt {
 mut:
-	ctx C.mlx_vector_int
+	ctx   C.mlx_vector_int
+	freed bool
 }
 
-pub fn (v &VectorInt) free() {
-	C.mlx_vector_int_free(v.ctx)
+pub fn (mut v VectorInt) free() {
+	if !v.freed {
+		v.freed = true
+		C.mlx_vector_int_free(v.ctx)
+	}
 }
 
 pub fn (v VectorInt) len() int {
@@ -87,7 +95,8 @@ pub fn (v VectorInt) get(idx int) int {
 // VectorString is a growable list of strings.
 pub struct VectorString {
 mut:
-	ctx C.mlx_vector_string
+	ctx   C.mlx_vector_string
+	freed bool
 }
 
 pub fn new_vector_string() VectorString {
@@ -96,8 +105,11 @@ pub fn new_vector_string() VectorString {
 	}
 }
 
-pub fn (v &VectorString) free() {
-	C.mlx_vector_string_free(v.ctx)
+pub fn (mut v VectorString) free() {
+	if !v.freed {
+		v.freed = true
+		C.mlx_vector_string_free(v.ctx)
+	}
 }
 
 pub fn (v VectorString) len() int {

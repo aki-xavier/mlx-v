@@ -21,15 +21,15 @@ pub fn (a Array) rms_norm(weight Array, eps f32) Array {
 // "additive" or "masked".
 pub fn scaled_dot_product_attention(queries Array, keys Array, values Array, scale f32, mask_mode string, mask_arr Array, sinks Array) Array {
 	res := new_result()
-	check(C.mlx_fast_scaled_dot_product_attention(&res, queries.raw(), keys.raw(), values.raw(), scale,
-		mask_mode.str, mask_arr.raw(), sinks.raw(), def_stream()))
+	check(C.mlx_fast_scaled_dot_product_attention(&res, queries.raw(), keys.raw(), values.raw(),
+		scale, mask_mode.str, mask_arr.raw(), sinks.raw(), def_stream()))
 	return wrap_array(res)
 }
 
 // optional_float builds the C optional<float> used by the rope kernels.
 pub fn optional_float(value f32) C.mlx_optional_float {
 	return C.mlx_optional_float{
-		value: value
+		value:     value
 		has_value: true
 	}
 }
@@ -37,7 +37,7 @@ pub fn optional_float(value f32) C.mlx_optional_float {
 // no_optional_float returns an empty optional<float>.
 pub fn no_optional_float() C.mlx_optional_float {
 	return C.mlx_optional_float{
-		value: 0
+		value:     0
 		has_value: false
 	}
 }
@@ -53,7 +53,8 @@ pub fn (a Array) rope(dims int, traditional bool, base C.mlx_optional_float, sca
 // MetalKernelConfig configures a custom Metal kernel launch.
 pub struct MetalKernelConfig {
 mut:
-	ctx C.mlx_fast_metal_kernel_config
+	ctx   C.mlx_fast_metal_kernel_config
+	freed bool
 }
 
 // metal_kernel_config returns an empty kernel configuration.
@@ -95,14 +96,18 @@ pub fn (c MetalKernelConfig) add_template_arg_bool(name string, v bool) {
 	C.mlx_fast_metal_kernel_config_add_template_arg_bool(c.ctx, name.str, v)
 }
 
-pub fn (c &MetalKernelConfig) free() {
-	C.mlx_fast_metal_kernel_config_free(c.ctx)
+pub fn (mut c MetalKernelConfig) free() {
+	if !c.freed {
+		c.freed = true
+		C.mlx_fast_metal_kernel_config_free(c.ctx)
+	}
 }
 
 // MetalKernel is a custom Metal (GPU) kernel compiled from MSL source.
 pub struct MetalKernel {
 mut:
-	ctx C.mlx_fast_metal_kernel
+	ctx   C.mlx_fast_metal_kernel
+	freed bool
 }
 
 // metal_kernel builds a kernel from Metal Shading Language source.
@@ -132,6 +137,9 @@ pub fn (k MetalKernel) apply(inputs []Array, config MetalKernelConfig) []Array {
 	return array_vector_to_slice(out)
 }
 
-pub fn (k &MetalKernel) free() {
-	C.mlx_fast_metal_kernel_free(k.ctx)
+pub fn (mut k MetalKernel) free() {
+	if !k.freed {
+		k.freed = true
+		C.mlx_fast_metal_kernel_free(k.ctx)
+	}
 }

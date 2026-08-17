@@ -28,7 +28,7 @@ fn main() {
 		b.free()
 	}
 
-	vag := mlx.value_and_grad(loss, [0, 1])
+	mut vag := mlx.value_and_grad(loss, [0, 1])
 	defer {
 		vag.free()
 	}

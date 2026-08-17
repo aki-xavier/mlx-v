@@ -7,6 +7,7 @@ pub struct ValueAndGrad {
 mut:
 	ctx     C.mlx_closure_value_and_grad
 	closure Closure // kept alive while `ctx` may still reference it
+	freed   bool
 }
 
 // value_and_grad wraps `f`, differentiating with respect to `argnums`.
@@ -17,15 +18,18 @@ pub fn value_and_grad(f Func, argnums []int) ValueAndGrad {
 	begin_op()
 	check(C.mlx_value_and_grad(&ctx, c.ctx, argnums.data, argnums.len))
 	return ValueAndGrad{
-		ctx: ctx
+		ctx:     ctx
 		closure: c
 	}
 }
 
-// free releases the value-and-grad closure.
-pub fn (vg &ValueAndGrad) free() {
-	C.mlx_closure_value_and_grad_free(vg.ctx)
-	vg.closure.free()
+// free releases the value-and-grad closure (idempotent).
+pub fn (mut vg ValueAndGrad) free() {
+	if !vg.freed {
+		vg.freed = true
+		C.mlx_closure_value_and_grad_free(vg.ctx)
+		vg.closure.free()
+	}
 }
 
 // apply returns (values, grads) for the given inputs.
@@ -45,7 +49,7 @@ pub fn (vg ValueAndGrad) apply(inputs []Array) ([]Array, []Array) {
 // jvp computes the Jacobian-vector product of `f` at `primals` along `tangents`.
 // Returns (values, jvps).
 pub fn jvp(f Func, primals []Array, tangents []Array) ([]Array, []Array) {
-	c := new_closure(f)
+	mut c := new_closure(f)
 	defer {
 		c.free()
 	}
@@ -66,7 +70,7 @@ pub fn jvp(f Func, primals []Array, tangents []Array) ([]Array, []Array) {
 // vjp computes the vector-Jacobian product of `f` at `primals` with
 // `cotangents`.  Returns (values, vjps).
 pub fn vjp(f Func, primals []Array, cotangents []Array) ([]Array, []Array) {
-	c := new_closure(f)
+	mut c := new_closure(f)
 	defer {
 		c.free()
 	}
@@ -85,8 +89,10 @@ pub fn vjp(f Func, primals []Array, cotangents []Array) ([]Array, []Array) {
 }
 
 // compile traces and compiles `f`, returning a faster closure.
+// `mlx_compile` copies the source closure into the result, so freeing `c`
+// below is safe (unlike value_and_grad, which retains it defensively).
 pub fn compile(f Func, shapeless bool) Closure {
-	c := new_closure(f)
+	mut c := new_closure(f)
 	res := C.mlx_closure_new()
 	setup()
 	begin_op()
@@ -98,8 +104,9 @@ pub fn compile(f Func, shapeless bool) Closure {
 }
 
 // checkpoint wraps `f` with gradient checkpointing (trades memory for compute).
+// `mlx_checkpoint` copies the source closure, so freeing `c` is safe.
 pub fn checkpoint(f Func) Closure {
-	c := new_closure(f)
+	mut c := new_closure(f)
 	res := C.mlx_closure_new()
 	setup()
 	begin_op()
@@ -114,7 +121,7 @@ pub fn checkpoint(f Func) Closure {
 pub fn eval(outputs []Array) {
 	setup()
 	begin_op()
-	vec := array_vector(outputs)
+	mut vec := array_vector(outputs)
 	defer {
 		vec.free()
 	}
@@ -125,7 +132,7 @@ pub fn eval(outputs []Array) {
 pub fn async_eval(outputs []Array) {
 	setup()
 	begin_op()
-	vec := array_vector(outputs)
+	mut vec := array_vector(outputs)
 	defer {
 		vec.free()
 	}

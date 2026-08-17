@@ -2,8 +2,9 @@ module mlx
 
 // compile.v — graph compilation controls.
 //
-// Note: `mlx.compile(fun)` itself needs to build a closure from a V callback,
-// which is not wired up yet; these functions control the compile machinery.
+// Note: `mlx.compile(fun)` itself (wrapping a V callback) lives in
+// transforms.v as `compile()`; these functions control the process-wide
+// compile machinery (on/off toggle and compile mode).
 
 // enable_compile turns on compilation.
 pub fn enable_compile() {

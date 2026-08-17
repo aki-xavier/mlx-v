@@ -1,50 +1,67 @@
 /*
  * mlx.c — tiny C helpers for the mlx V bindings.
  *
- * Keeps the last MLX error message, a "force CPU" flag, and the cached default
- * streams in C static storage so that the V module does not need mutable
- * globals (`-enable-globals`).
+ * Keeps the last MLX error message, a "force CPU" flag, the live-box counter
+ * and the cached default streams in C storage so that the V module does not
+ * need mutable globals (`-enable-globals`).
+ *
+ * Everything here is written to be safe under concurrent use:
+ *   - the error buffer is thread-local (MLX invokes the error handler on the
+ *     thread that triggered the error, so a per-thread buffer prevents one
+ *     thread's message from clobbering another's),
+ *   - the force-CPU flag and live-box counter are atomic (the latter is
+ *     decremented from Boehm finalizers, which may run on any thread),
+ *   - the cached streams are initialised exactly once with pthread_once.
  */
 #include <stdint.h>
 #include <string.h>
 
+#include <stdatomic.h>
+#include <pthread.h>
+
 #include <gc/gc.h>
 #include <mlx/c/mlx.h>
 
-static char mlx_v_error_buf[2048];
-static int mlx_v_force_cpu = 0;
-static int mlx_v_live_boxes = 0;
+static __thread char mlx_v_error_buf[2048];
+static atomic_int mlx_v_force_cpu = 0;
+static atomic_int mlx_v_live_boxes = 0;
+
+static pthread_once_t mlx_v_stream_once = PTHREAD_ONCE_INIT;
 static mlx_stream mlx_v_cpu_stream = {0};
 static mlx_stream mlx_v_gpu_stream = {0};
 
+static void mlx_v_init_streams(void) {
+    mlx_v_cpu_stream = mlx_default_cpu_stream_new();
+    mlx_v_gpu_stream = mlx_default_gpu_stream_new();
+}
+
 void mlx_v_note_box_alloc(void) {
-    mlx_v_live_boxes++;
+    atomic_fetch_add(&mlx_v_live_boxes, 1);
 }
 
 void mlx_v_note_box_free(void) {
-    if (mlx_v_live_boxes > 0) {
-        mlx_v_live_boxes--;
+    int v = atomic_load(&mlx_v_live_boxes);
+    while (v > 0 &&
+           !atomic_compare_exchange_weak(&mlx_v_live_boxes, &v, v - 1)) {
+        // retry on contention; never let the counter go negative
     }
 }
 
 int mlx_v_get_live_boxes(void) {
-    return mlx_v_live_boxes;
+    return atomic_load(&mlx_v_live_boxes);
 }
 
 /* Cached default streams.  mlx_default_*_stream_new() heap-allocates a new
  * Stream wrapper on every call, and the wrappers are never freed by the V
- * bindings, so caching one wrapper per device avoids a per-op allocation leak. */
+ * bindings, so caching one wrapper per device avoids a per-op allocation leak.
+ * The cache is shared and initialised exactly once. */
 mlx_stream mlx_v_cached_cpu_stream(void) {
-    if (!mlx_v_cpu_stream.ctx) {
-        mlx_v_cpu_stream = mlx_default_cpu_stream_new();
-    }
+    pthread_once(&mlx_v_stream_once, mlx_v_init_streams);
     return mlx_v_cpu_stream;
 }
 
 mlx_stream mlx_v_cached_gpu_stream(void) {
-    if (!mlx_v_gpu_stream.ctx) {
-        mlx_v_gpu_stream = mlx_default_gpu_stream_new();
-    }
+    pthread_once(&mlx_v_stream_once, mlx_v_init_streams);
     return mlx_v_gpu_stream;
 }
 
@@ -117,9 +134,9 @@ const char *mlx_v_get_error(void) {
 }
 
 void mlx_v_set_force_cpu(int v) {
-    mlx_v_force_cpu = v;
+    atomic_store(&mlx_v_force_cpu, v);
 }
 
 int mlx_v_get_force_cpu(void) {
-    return mlx_v_force_cpu;
+    return atomic_load(&mlx_v_force_cpu);
 }

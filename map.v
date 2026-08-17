@@ -5,7 +5,8 @@ module mlx
 // MapStringToArray is a string -> Array map.
 pub struct MapStringToArray {
 mut:
-	ctx C.mlx_map_string_to_array
+	ctx   C.mlx_map_string_to_array
+	freed bool
 }
 
 // new_map_string_to_array returns an empty map.
@@ -15,8 +16,11 @@ pub fn new_map_string_to_array() MapStringToArray {
 	}
 }
 
-pub fn (m &MapStringToArray) free() {
-	C.mlx_map_string_to_array_free(m.ctx)
+pub fn (mut m MapStringToArray) free() {
+	if !m.freed {
+		m.freed = true
+		C.mlx_map_string_to_array_free(m.ctx)
+	}
 }
 
 // insert stores `value` under `key`.
@@ -27,6 +31,7 @@ pub fn (m MapStringToArray) insert(key string, value Array) {
 }
 
 // get returns the array at `key` (a new reference the caller should free).
+// Panics if the key is absent (consistent with the rest of the error handling).
 pub fn (m MapStringToArray) get(key string) Array {
 	res := C.mlx_array_new()
 	setup()
@@ -38,7 +43,8 @@ pub fn (m MapStringToArray) get(key string) Array {
 // MapStringToString is a string -> string map (safetensors metadata).
 pub struct MapStringToString {
 mut:
-	ctx C.mlx_map_string_to_string
+	ctx   C.mlx_map_string_to_string
+	freed bool
 }
 
 // new_map_string_to_string returns an empty map.
@@ -48,8 +54,11 @@ pub fn new_map_string_to_string() MapStringToString {
 	}
 }
 
-pub fn (m &MapStringToString) free() {
-	C.mlx_map_string_to_string_free(m.ctx)
+pub fn (mut m MapStringToString) free() {
+	if !m.freed {
+		m.freed = true
+		C.mlx_map_string_to_string_free(m.ctx)
+	}
 }
 
 // insert stores `value` under `key`.

@@ -9,14 +9,14 @@ from V.
 import mlx
 
 fn main() {
-	a := mlx.array_f32([f32(1), 2, 3, 4], [2, 2])
-	b := mlx.array_f32([f32(10), 20, 30, 40], [2, 2])
-	defer {
-		a.free()
-		b.free()
-	}
-	c := a + b           // runs on the GPU when available
-	println(c.data_f32()) // [11.0, 22.0, 33.0, 44.0]
+  a := mlx.array_f32([f32(1), 2, 3, 4], [2, 2])
+  b := mlx.array_f32([f32(10), 20, 30, 40], [2, 2])
+  defer {
+    a.free()
+    b.free()
+  }
+  c := a + b           // runs on the GPU when available
+  println(c.data_f32()) // [11.0, 22.0, 33.0, 44.0]
 }
 ```
 
@@ -141,7 +141,7 @@ mlx.use_gpu()
 
 // Autograd (f must be a top-level fn, not a capturing closure)
 fn loss(xs []mlx.Array) []mlx.Array {
-	return [xs[0].square().sum()]
+  return [xs[0].square().sum()]
 }
 vag := mlx.value_and_grad(loss, [0])
 values, grads := vag.apply([a])   // grads[0] == 2*a

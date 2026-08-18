@@ -694,6 +694,27 @@ pub fn (a Array) logsumexp() Array {
 	return wrap_array(res)
 }
 
+// median returns the median of all elements.
+pub fn (a Array) median() Array {
+	res := new_result()
+	check(C.mlx_median(&res, a.raw(), unsafe { nil }, 0, false, def_stream()))
+	return wrap_array(res)
+}
+
+// var_axis returns the variance along `axis` (population variance ddof=0 by default).
+pub fn (a Array) var_axis(axis int, keepdims bool, ddof int) Array {
+	res := new_result()
+	check(C.mlx_var_axis(&res, a.raw(), axis, keepdims, ddof, def_stream()))
+	return wrap_array(res)
+}
+
+// std_axis returns the standard deviation along `axis`.
+pub fn (a Array) std_axis(axis int, keepdims bool, ddof int) Array {
+	res := new_result()
+	check(C.mlx_std_axis(&res, a.raw(), axis, keepdims, ddof, def_stream()))
+	return wrap_array(res)
+}
+
 // --- cumulative & sorting ----------------------------------------------------
 
 pub fn (a Array) cumsum(axis int, reverse bool, inclusive bool) Array {
@@ -984,6 +1005,15 @@ pub fn (a Array) clip(a_min Array, a_max Array) Array {
 pub fn where(condition Array, x Array, y Array) Array {
 	res := new_result()
 	check(C.mlx_where(&res, condition.raw(), x.raw(), y.raw(), def_stream()))
+	return wrap_array(res)
+}
+
+// pad pads the array along `axes` by `low`/`high` amounts (mode: "edge",
+// "constant", "symmetric", "reflect").
+pub fn (a Array) pad(axes []int, low []int, high []int, value Array, mode string) Array {
+	res := new_result()
+	check(C.mlx_pad(&res, a.raw(), axes.data, usize(axes.len), low.data, usize(low.len),
+		high.data, usize(high.len), value.raw(), mode.str, def_stream()))
 	return wrap_array(res)
 }
 

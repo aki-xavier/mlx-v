@@ -34,6 +34,16 @@ pub fn random_split(key Array) (Array, Array) {
 	return wrap_array(r0), wrap_array(r1)
 }
 
+// random_split_n splits `key` into `num` new keys, returning a single (num, 2)
+// uint32 array (matching mlx's mx.random.split(key, num)).
+pub fn random_split_n(key Array, num int) Array {
+	setup()
+	begin_op()
+	res := C.mlx_array_new()
+	check(C.mlx_random_split_num(&res, key.raw(), num, def_stream()))
+	return wrap_array(res)
+}
+
 // random_normal samples from a normal distribution with mean `loc`, std `scale`.
 pub fn random_normal(shape []int, dtype Dtype, loc f32, scale f32, key Array) Array {
 	setup()

@@ -95,6 +95,15 @@ pub fn f64_scalar(v f64) Array {
 	return wrap_array(ctx)
 }
 
+// complex_scalar returns a 0-d complex64 array re + i·im.
+pub fn complex_scalar(re f32, im f32) Array {
+	setup()
+	begin_op()
+	ctx := C.mlx_array_new_complex(re, im)
+	fail_on_error()
+	return wrap_array(ctx)
+}
+
 // array builds an array from `data` and `shape` using the generic dtype `dtype`.
 pub fn array_with[T](data []T, shape []int, dtype Dtype) Array {
 	setup()

@@ -109,6 +109,22 @@ pub fn (a Array) eigh(uplo string) (Array, Array) {
 	return wrap_array(r0), wrap_array(r1)
 }
 
+// eigh_cpu evaluates eigh on the CPU (MLX has no GPU eigendecomposition),
+// restoring the caller's default device afterwards: if the GPU default was
+// active it is re-established via use_gpu(), otherwise the CPU state left by
+// use_cpu() already matches.
+pub fn (a Array) eigh_cpu(uplo string) (Array, Array) {
+	mut prev := default_device()
+	was_gpu := prev.dtype() == .gpu
+	prev.free()
+	use_cpu()
+	lam, u := a.eigh(uplo)
+	if was_gpu {
+		use_gpu()
+	}
+	return lam, u
+}
+
 // eigvals returns the eigenvalues of a general matrix.
 pub fn (a Array) eigvals() Array {
 	res := new_result()

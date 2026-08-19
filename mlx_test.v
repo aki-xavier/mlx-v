@@ -379,3 +379,27 @@ fn test_composite_helpers() {
 		assert k.dtype() == .uint32
 	}
 }
+
+fn test_eigh_cpu() {
+	// symmetric [[2, 1], [1, 2]] → eigenvalues 1, 3; eigenvectors ±(1,-1)/√2, (1,1)/√2
+	a := arr32([2.0, 1.0, 1.0, 2.0], [2, 2])
+	use_gpu()
+	lam, u := a.eigh_cpu('L')
+	lam.eval()
+	u.eval()
+	w := lam.data_f32()
+	assert math.abs(f64(w[0]) - 1.0) < 1e-5
+	assert math.abs(f64(w[1]) - 3.0) < 1e-5
+	// 特征方程 A·U = U·λ(λ 按列广播)
+	lhs := a.matmul(u)
+	rhs := u.multiply(lam)
+	lhs.eval()
+	rhs.eval()
+	ld := lhs.data_f32()
+	rd := rhs.data_f32()
+	for i in 0 .. 4 {
+		assert math.abs(f64(ld[i]) - f64(rd[i])) < 1e-5
+	}
+	// the caller's GPU default is restored afterwards
+	assert default_device().dtype() == .gpu
+}

@@ -129,3 +129,14 @@ pub fn random_permutation(x Array, axis int, key Array) Array {
 	check(C.mlx_random_permutation(&res, x.raw(), axis, key.raw(), def_stream()))
 	return wrap_array(res)
 }
+
+// split_keys splits a PRNG key from `seed` into `num` independent keys
+// (mx.random.split semantics).
+pub fn split_keys(seed u64, num int) []Array {
+	keys := random_split_n(random_key(seed), num)
+	mut out := []Array{len: num}
+	for i in 0 .. num {
+		out[i] = keys.take_axis(sel1(i), 0).squeeze_axis(0)
+	}
+	return out
+}

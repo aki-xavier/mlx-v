@@ -1012,8 +1012,8 @@ pub fn where(condition Array, x Array, y Array) Array {
 // "constant", "symmetric", "reflect").
 pub fn (a Array) pad(axes []int, low []int, high []int, value Array, mode string) Array {
 	res := new_result()
-	check(C.mlx_pad(&res, a.raw(), axes.data, usize(axes.len), low.data, usize(low.len),
-		high.data, usize(high.len), value.raw(), mode.str, def_stream()))
+	check(C.mlx_pad(&res, a.raw(), axes.data, usize(axes.len), low.data, usize(low.len), high.data,
+		usize(high.len), value.raw(), mode.str, def_stream()))
 	return wrap_array(res)
 }
 
@@ -1046,4 +1046,72 @@ pub fn (a Array) split(num_splits int, axis int) []Array {
 	res := C.mlx_vector_array_new()
 	check(C.mlx_split(&res, a.raw(), num_splits, axis, def_stream()))
 	return array_vector_to_slice(res)
+}
+
+// --- composite helpers -------------------------------------------------------
+
+// nonzero_indices returns the flat int32 indices where a boolean array is true.
+// Uses the argsort trick: MLX has no boolean indexing.
+pub fn nonzero_indices(sel Array) Array {
+	n := int(sel.size())
+	flat := sel.reshape([n])
+	k := int(flat.astype(.float32).sum().item_f32())
+	key := where(flat, arange(0.0, f64(n), 1.0, .float32), full_value([n], f32(n), .float32))
+	return key.argsort().take(arange(0.0, f64(k), 1.0, .int32))
+}
+
+// axis_logsumexp returns log(Σ exp(x)) along `axis`, keepdims, computed stably.
+pub fn axis_logsumexp(x Array, axis int) Array {
+	m := x.max_axis(axis, true)
+	return m.add(x.subtract(m).exp().sum_axis(axis, true).log())
+}
+
+// col returns a true 1-D column j of an array (take_axis keeps the index dim,
+// so squeeze it away to get plain a[:, j] indexing semantics).
+pub fn col(a Array, j int) Array {
+	return a.take_axis(sel1(j), 1).squeeze_axis(1)
+}
+
+// slice_rows returns rows [start, end) of a 2-D array.
+pub fn slice_rows(x Array, start int, end int) Array {
+	return x.take_axis(arange(f64(start), f64(end), 1.0, .int32), 0)
+}
+
+// roll_axis rolls a 2-D array along `axis` by `shift` (wrapping), matching
+// numpy's mx.roll(x, shift, axis). shift = -1 pulls the next row/column in.
+pub fn roll_axis(x Array, shift int, axis int) Array {
+	n := x.dim(axis)
+	mut idx := []i32{len: n}
+	for i in 0 .. n {
+		mut j := i - shift
+		j %= n
+		if j < 0 {
+			j += n
+		}
+		idx[i] = i32(j)
+	}
+	return x.take_axis(array_i32(idx, [n]), axis)
+}
+
+// overwrite_region returns a copy of `base` with the region at rows
+// [top, top+patch.dim(0)) and cols [left, left+patch.dim(1)) replaced by
+// `patch` (both must share all trailing dims beyond axis 1). This is the
+// immutable-mlx replacement for numpy's `base[top:top+ph, left:left+pw] = patch`.
+pub fn overwrite_region(base Array, patch Array, top int, left int) Array {
+	h := base.dim(0)
+	w := base.dim(1)
+	ih := patch.dim(0)
+	iw := patch.dim(1)
+	top_rows := base.take_axis(arange(0.0, f64(top), 1.0, .int32), 0)
+	bottom_rows := base.take_axis(arange(f64(top + ih), f64(h), 1.0, .int32), 0)
+	mid_rows := base.take_axis(arange(f64(top), f64(top + ih), 1.0, .int32), 0)
+	left_cols := mid_rows.take_axis(arange(0.0, f64(left), 1.0, .int32), 1)
+	right_cols := mid_rows.take_axis(arange(f64(left + iw), f64(w), 1.0, .int32), 1)
+	mid := concatenate([left_cols, patch, right_cols], 1)
+	return concatenate([top_rows, mid, bottom_rows], 0)
+}
+
+// pad_edge pads a 2-D array by `p` on both axes with edge mode.
+pub fn pad_edge(x Array, p int) Array {
+	return x.pad([0, 1], [p, p], [p, p], f32_scalar(0.0), 'edge')
 }

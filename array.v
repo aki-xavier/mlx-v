@@ -148,6 +148,28 @@ pub fn array_bool(data []bool, shape []int) Array {
 	return array_with(data, shape, .bool_)
 }
 
+// arr32 builds a float32 array from f64 literals (avoiding f32() casts everywhere).
+pub fn arr32(vals []f64, shape []int) Array {
+	mut f := []f32{len: vals.len}
+	for i, v in vals {
+		f[i] = f32(v)
+	}
+	return array_f32(f, shape)
+}
+
+// sel1 returns a length-1 int32 index array selecting element `n` along an axis.
+pub fn sel1(n int) Array {
+	return array_i32([i32(n)], [1])
+}
+
+// complex_from builds a complex64 array re + i·im from two real arrays.
+pub fn complex_from(re Array, im Array) Array {
+	re_c := re.astype(.complex64)
+	im_c := im.astype(.complex64)
+	i := complex_scalar(0.0, 1.0)
+	return re_c.add(i.multiply(im_c))
+}
+
 // fail_on_error panics when the last constructor call recorded an error.
 @[inline]
 fn fail_on_error() {

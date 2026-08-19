@@ -88,3 +88,13 @@ pub fn rfftfreq(n int, d f64) Array {
 	check(C.mlx_fft_rfftfreq(&res, n, d, def_stream()))
 	return wrap_array(res)
 }
+
+// fft2 returns the 2-D complex FFT (backward norm, matching mx.fft.fft2).
+pub fn fft2(x Array) Array {
+	return x.fftn([x.dim(0), x.dim(1)], [0, 1], .backward)
+}
+
+// ifft2 returns the 2-D complex inverse FFT (backward norm, matching mx.fft.ifft2).
+pub fn ifft2(x Array) Array {
+	return x.ifftn([x.dim(0), x.dim(1)], [0, 1], .backward)
+}

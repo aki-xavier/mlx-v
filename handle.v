@@ -23,6 +23,7 @@ mut:
 	free_fn HandleFreeFn = unsafe { nil }
 	freed   bool
 	owned   bool
+	cached  bool
 }
 
 // handle_finalizer releases the C handle when its box is garbage-collected.
@@ -33,6 +34,13 @@ fn handle_finalizer(obj voidptr, _cd voidptr) {
 
 // wrap_handle boxes a raw MLX handle and registers its finalizer.  `owned`
 // must be false for shared handles whose lifetime is managed elsewhere.
+//
+// `cached` snapshots whether this box wraps a shared cached default handle
+// (e.g. cpu_stream()/gpu_stream()).  It is captured at creation time and is
+// *not* mutated by `set_default()`, which disowns user-owned boxes by flipping
+// `owned`.  That lets Stream.set_default() keep the process-wide override
+// "owned" even when it is called more than once on the same stream (otherwise
+// the second call would mark the override borrowed and leak it).
 fn wrap_handle(ctx voidptr, free_fn HandleFreeFn, owned bool) &HandleBox {
 	// Allocate from the Boehm GC heap explicitly (see wrap_array).
 	mut box := unsafe { &HandleBox(C.mlx_v_gc_malloc(sizeof(HandleBox))) }
@@ -40,6 +48,7 @@ fn wrap_handle(ctx voidptr, free_fn HandleFreeFn, owned bool) &HandleBox {
 	box.free_fn = free_fn
 	box.freed = false
 	box.owned = owned
+	box.cached = !owned
 	register_finalizer(box, handle_finalizer)
 	return box
 }

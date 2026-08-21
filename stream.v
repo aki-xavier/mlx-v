@@ -47,11 +47,17 @@ pub fn default_stream() Stream {
 	}
 }
 
-// new_stream returns an empty (invalid) stream (owned; free it).
+// new_stream returns a new stream on the current default device (owned; free
+// it).  Unlike the raw `mlx_stream_new()`, which yields an empty handle that is
+// only useful as a C output parameter, this returns a usable stream so that
+// calling `set_default()`/`synchronize()`/`raw()` on it does not trip an
+// "expected a non-empty mlx_stream" error.
 pub fn new_stream() Stream {
-	return Stream{
-		box: wrap_handle(C.mlx_stream_new().ctx, free_stream_handle, true)
+	d := default_device()
+	defer {
+		d.free()
 	}
+	return on_device(d)
 }
 
 // on_device returns a stream for `dev` (owned; free it).
@@ -109,12 +115,16 @@ pub fn (s Stream) synchronize() {
 // The process-wide override takes ownership of this Stream (disowning the
 // box), so `free()` and the GC finalizer no longer release it; any previous
 // override is released.  Cached default streams (cpu_stream()/gpu_stream())
-// are borrowed, not owned, and are never released here.
+// are borrowed, not owned, and are never released here.  Because the override
+// takes ownership based on the box's original `cached` snapshot (not the
+// `owned` flag, which `set_default()` flips), calling `set_default()` again on
+// the same stream keeps the override owned instead of turning it borrowed and
+// leaking it.
 pub fn (s Stream) set_default() {
 	setup()
 	begin_op()
 	check(C.mlx_set_default_stream(s.raw()))
 	mut box := s.box
-	C.mlx_v_set_stream_override(s.raw(), int(box.owned))
+	C.mlx_v_set_stream_override(s.raw(), int(!box.cached))
 	box.owned = false
 }

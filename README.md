@@ -204,6 +204,14 @@ python3 gen/gen_cdefs.py
   threads get their own error messages.  However, MLX's error handler, default
   device/stream and `use_cpu()`/`use_gpu()` are process-wide, so those
   controls affect every thread.
+- **Value reads on worker threads** — ops that take an explicit stream
+  (`def_stream()`) work from any thread, but the value-reading helpers
+  (`item_*`, `data_*`, `eval`, `wait`, `str`, `is_available`) do **not** take a
+  stream and rely on MLX's per-thread default stream.  On a V `go` coroutine
+  thread (which the runtime multiplexes across OS threads) that default is
+  never initialised, so those helpers fail with
+  `There is no Stream(...) in current thread`.  Run value reads on the main
+  thread (or a dedicated OS thread that has set MLX's default stream).
 - **Panics in autograd functions** — an MLX error inside a `fn` passed to
   `value_and_grad`/`jvp`/`vjp`/`compile`/`checkpoint` panics, and that panic
   escapes MLX's C callback boundary (no C++ stack unwinding), aborting the

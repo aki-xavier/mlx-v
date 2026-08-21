@@ -133,7 +133,11 @@ pub fn (g Gguf) metadata_string(key string) string {
 	s := C.mlx_string_new()
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_get_metadata_string(&s, g.raw(), key.str))
+	rc := C.mlx_io_gguf_get_metadata_string(&s, g.raw(), key.str)
+	if rc != 0 {
+		C.mlx_string_free(s)
+		check(rc)
+	}
 	res := cstr(C.mlx_string_data(s))
 	C.mlx_string_free(s)
 	return res

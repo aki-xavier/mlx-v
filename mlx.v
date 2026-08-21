@@ -20,6 +20,14 @@ module mlx
 // them, and the finalizers run too early (use-after-free).  `-gc boehm` is V's
 // default mode and provides the bundled bdw-gc + GC_THREADS defines, so no
 // extra -lgc / -L flags are needed here.
+//
+// Enforce the requirement at compile time instead of crashing at runtime: the
+// `?` makes `$if gcboehm` evaluate to false (rather than "undefined ident")
+// when a consumer compiles with `-gc none`.
+$if gcboehm ? {
+} $else {
+	$compile_error('mlx-v requires V Boehm GC: compile with `v` (default) or `v -gc boehm`, not `v -gc none`')
+}
 
 // mlx-c include/library search paths.  Homebrew (Apple Silicon) is the
 // default.  For Intel Homebrew, Linux/CUDA, or a custom build, set
@@ -107,7 +115,7 @@ fn C.mlx_v_note_box_free()
 fn C.mlx_v_get_live_boxes() int
 fn C.mlx_v_cached_cpu_stream() C.mlx_stream
 fn C.mlx_v_cached_gpu_stream() C.mlx_stream
-fn C.mlx_v_set_stream_override(s C.mlx_stream)
+fn C.mlx_v_set_stream_override(s C.mlx_stream, owned int)
 fn C.mlx_v_clear_stream_override()
 fn C.mlx_v_stream_for_ops() C.mlx_stream
 fn C.mlx_v_ensure_error_handler(handler MlxErrorHandlerFunc)

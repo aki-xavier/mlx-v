@@ -34,15 +34,21 @@ static mlx_stream mlx_v_cpu_stream = {0};
 static mlx_stream mlx_v_gpu_stream = {0};
 
 /* Process-wide stream override installed by Stream.set_default(); stored as
- * the stream's inner pointer so it can be atomic. */
+ * the stream's inner pointer so it can be atomic.  `_override_owned` is 1 when
+ * the override is the sole owner of its stream (a user-owned stream disowned
+ * by set_default) and must be released when the override is replaced/cleared;
+ * it is 0 for cached default streams, whose lifetime is managed elsewhere.
+ * Only set/clear touch it (process-wide, not thread-safe); the reader below
+ * (`mlx_v_stream_for_ops`) sees only the atomic pointer. */
 static _Atomic(void *) mlx_v_stream_override = NULL;
+static int mlx_v_stream_override_owned = 0;
 
 /* The error handler is installed exactly once (see mlx_v_ensure_error_handler). */
 static pthread_once_t mlx_v_error_once = PTHREAD_ONCE_INIT;
-static mlx_error_handler_func mlx_v_error_handler = NULL;
+static _Atomic(mlx_error_handler_func) mlx_v_error_handler = NULL;
 
 static void mlx_v_install_error_handler(void) {
-    mlx_set_error_handler(mlx_v_error_handler, NULL, NULL);
+    mlx_set_error_handler(atomic_load(&mlx_v_error_handler), NULL, NULL);
 }
 
 /* The CPU and GPU caches are initialised independently, so touching the CPU
@@ -97,12 +103,22 @@ mlx_stream mlx_v_cached_gpu_stream(void) {
     return mlx_v_gpu_stream;
 }
 
-void mlx_v_set_stream_override(mlx_stream s) {
-    atomic_store(&mlx_v_stream_override, s.ctx);
+void mlx_v_set_stream_override(mlx_stream s, int owned) {
+    void *old = atomic_exchange(&mlx_v_stream_override, s.ctx);
+    if (old != NULL && old != s.ctx && mlx_v_stream_override_owned) {
+        mlx_stream o = {old};
+        mlx_stream_free(o);
+    }
+    mlx_v_stream_override_owned = owned;
 }
 
 void mlx_v_clear_stream_override(void) {
-    atomic_store(&mlx_v_stream_override, NULL);
+    void *old = atomic_exchange(&mlx_v_stream_override, NULL);
+    if (old != NULL && mlx_v_stream_override_owned) {
+        mlx_stream o = {old};
+        mlx_stream_free(o);
+    }
+    mlx_v_stream_override_owned = 0;
 }
 
 /* The stream ops run on: the override when one is set (Stream.set_default()),
@@ -123,7 +139,7 @@ mlx_stream mlx_v_stream_for_ops(void) {
  * process-global variable, so repeating it on every op is an unsynchronised
  * write. */
 void mlx_v_ensure_error_handler(mlx_error_handler_func handler) {
-    mlx_v_error_handler = handler;
+    atomic_store(&mlx_v_error_handler, handler);
     pthread_once(&mlx_v_error_once, mlx_v_install_error_handler);
 }
 

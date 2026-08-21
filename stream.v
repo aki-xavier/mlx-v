@@ -106,14 +106,15 @@ pub fn (s Stream) synchronize() {
 // set_default makes this stream the default: subsequent ops run on it.  This
 // is process-wide and not thread-safe.
 //
-// The process-wide override holds the handle for the rest of the process
-// (like the cached default streams), so this Stream is disowned: `free()` and
-// the GC finalizer no longer release it.
+// The process-wide override takes ownership of this Stream (disowning the
+// box), so `free()` and the GC finalizer no longer release it; any previous
+// override is released.  Cached default streams (cpu_stream()/gpu_stream())
+// are borrowed, not owned, and are never released here.
 pub fn (s Stream) set_default() {
 	setup()
 	begin_op()
 	check(C.mlx_set_default_stream(s.raw()))
-	C.mlx_v_set_stream_override(s.raw())
 	mut box := s.box
+	C.mlx_v_set_stream_override(s.raw(), int(box.owned))
 	box.owned = false
 }

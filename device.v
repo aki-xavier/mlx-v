@@ -32,7 +32,11 @@ pub fn default_device() Device {
 	dev := C.mlx_device_new()
 	setup()
 	begin_op()
-	check(C.mlx_get_default_device(&dev))
+	rc := C.mlx_get_default_device(&dev)
+	if rc != 0 {
+		C.mlx_device_free(dev)
+		check(rc)
+	}
 	return Device{
 		box: wrap_handle(dev.ctx, free_device_handle, true)
 	}

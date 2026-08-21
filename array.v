@@ -183,6 +183,9 @@ fn fail_on_error(ctx C.mlx_array) {
 
 // free releases the array deterministically (optional with the GC).
 pub fn (a &Array) free() {
+	if isnil(a.box) {
+		return
+	}
 	mut box := a.box
 	if !box.freed {
 		box.freed = true

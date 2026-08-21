@@ -13,7 +13,7 @@ pub fn random_key(seed u64) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new()
-	check(C.mlx_random_key(&ctx, seed))
+	check_res(C.mlx_random_key(&ctx, seed), ctx)
 	return wrap_array(ctx)
 }
 
@@ -30,7 +30,7 @@ pub fn random_split(key Array) (Array, Array) {
 	begin_op()
 	r0 := C.mlx_array_new()
 	r1 := C.mlx_array_new()
-	check(C.mlx_random_split(&r0, &r1, key.raw(), def_stream()))
+	check_res2(C.mlx_random_split(&r0, &r1, key.raw(), def_stream()), r0, r1)
 	return wrap_array(r0), wrap_array(r1)
 }
 
@@ -40,7 +40,7 @@ pub fn random_split_n(key Array, num int) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_split_num(&res, key.raw(), num, def_stream()))
+	check_res(C.mlx_random_split_num(&res, key.raw(), num, def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -49,8 +49,8 @@ pub fn random_normal(shape []int, dtype Dtype, loc f32, scale f32, key Array) Ar
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_normal(&res, shape.data, shape.len, int(dtype), loc, scale, key.raw(),
-		def_stream()))
+	check_res(C.mlx_random_normal(&res, shape.data, shape.len, int(dtype), loc, scale, key.raw(),
+		def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -59,8 +59,8 @@ pub fn random_uniform(low Array, high Array, shape []int, dtype Dtype, key Array
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_uniform(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype),
-		key.raw(), def_stream()))
+	check_res(C.mlx_random_uniform(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype),
+		key.raw(), def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -69,8 +69,8 @@ pub fn random_randint(low Array, high Array, shape []int, dtype Dtype, key Array
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_randint(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype),
-		key.raw(), def_stream()))
+	check_res(C.mlx_random_randint(&res, low.raw(), high.raw(), shape.data, shape.len, int(dtype),
+		key.raw(), def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -79,7 +79,8 @@ pub fn random_bernoulli(p Array, shape []int, key Array) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_bernoulli(&res, p.raw(), shape.data, shape.len, key.raw(), def_stream()))
+	check_res(C.mlx_random_bernoulli(&res, p.raw(), shape.data, shape.len, key.raw(), def_stream()),
+		res)
 	return wrap_array(res)
 }
 
@@ -88,7 +89,8 @@ pub fn random_gumbel(shape []int, dtype Dtype, key Array) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_gumbel(&res, shape.data, shape.len, int(dtype), key.raw(), def_stream()))
+	check_res(C.mlx_random_gumbel(&res, shape.data, shape.len, int(dtype), key.raw(), def_stream()),
+		res)
 	return wrap_array(res)
 }
 
@@ -97,8 +99,8 @@ pub fn random_laplace(shape []int, dtype Dtype, loc f32, scale f32, key Array) A
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_laplace(&res, shape.data, shape.len, int(dtype), loc, scale, key.raw(),
-		def_stream()))
+	check_res(C.mlx_random_laplace(&res, shape.data, shape.len, int(dtype), loc, scale, key.raw(),
+		def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -107,8 +109,8 @@ pub fn random_truncated_normal(lower Array, upper Array, shape []int, dtype Dtyp
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_truncated_normal(&res, lower.raw(), upper.raw(), shape.data, shape.len,
-		int(dtype), key.raw(), def_stream()))
+	check_res(C.mlx_random_truncated_normal(&res, lower.raw(), upper.raw(), shape.data, shape.len,
+		int(dtype), key.raw(), def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -117,7 +119,7 @@ pub fn random_categorical(logits Array, axis int, key Array) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_categorical(&res, logits.raw(), axis, key.raw(), def_stream()))
+	check_res(C.mlx_random_categorical(&res, logits.raw(), axis, key.raw(), def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -126,7 +128,7 @@ pub fn random_permutation(x Array, axis int, key Array) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_random_permutation(&res, x.raw(), axis, key.raw(), def_stream()))
+	check_res(C.mlx_random_permutation(&res, x.raw(), axis, key.raw(), def_stream()), res)
 	return wrap_array(res)
 }
 

@@ -14,27 +14,40 @@ type ClosureFuncPayload = fn (vres &C.mlx_vector_array, input C.mlx_vector_array
 // C function declared manually (takes a function pointer).
 fn C.mlx_closure_new_func_payload(fun ClosureFuncPayload, payload voidptr, dtor voidptr) C.mlx_closure
 
-// Closure wraps an MLX closure (a callable).
+// Closure wraps an MLX closure (a callable).  The handle is GC-managed;
+// `free()` releases it deterministically.
 pub struct Closure {
 mut:
-	ctx   C.mlx_closure
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (c Closure) raw() C.mlx_closure {
+	if isnil(c.box) {
+		panic('mlx: Closure is uninitialised (zero value); build it with new_closure() before using it')
+	}
+	return C.mlx_closure{
+		ctx: c.box.ctx
+	}
 }
 
 // new_closure builds a closure from `f`.
 pub fn new_closure(f Func) Closure {
 	setup()
 	return Closure{
-		ctx: C.mlx_closure_new_func_payload(closure_thunk, voidptr(f), 0)
+		box: wrap_handle(C.mlx_closure_new_func_payload(closure_thunk, voidptr(f), 0).ctx,
+			free_closure_handle, true)
 	}
 }
 
-// free releases the closure (idempotent).
-pub fn (mut c Closure) free() {
-	if !c.freed {
-		c.freed = true
-		C.mlx_closure_free(c.ctx)
+// free releases the closure (idempotent; optional with the GC).
+pub fn (c &Closure) free() {
+	if isnil(c.box) {
+		return
 	}
+	mut box := c.box
+	box.release()
 }
 
 // apply runs the closure on `inputs` and returns its outputs.
@@ -46,7 +59,7 @@ pub fn (c Closure) apply(inputs []Array) []Array {
 		C.mlx_vector_array_free(vin)
 	}
 	out := C.mlx_vector_array_new()
-	check(C.mlx_closure_apply(&out, c.ctx, vin))
+	check_vec(C.mlx_closure_apply(&out, c.raw(), vin), out)
 	return array_vector_to_slice(out)
 }
 
@@ -56,6 +69,11 @@ pub fn (c Closure) apply(inputs []Array) []Array {
 // panic unwinds out of this callback and through MLX's C++ frames without C++
 // stack unwinding, so an error inside an autograd function aborts the process
 // rather than returning a recoverable error.  Keep `f` panic-free in practice.
+//
+// NOTE: this relies on MLX invoking the closure synchronously on the calling
+// thread.  The V code below allocates from the Boehm GC heap; if MLX ever
+// called the closure from an unregistered worker thread, those GC allocations
+// would crash.
 fn closure_thunk(vres &C.mlx_vector_array, input C.mlx_vector_array, payload voidptr) int {
 	f := Func(payload)
 	xs := vector_to_arrays(input)

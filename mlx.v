@@ -107,6 +107,10 @@ fn C.mlx_v_note_box_free()
 fn C.mlx_v_get_live_boxes() int
 fn C.mlx_v_cached_cpu_stream() C.mlx_stream
 fn C.mlx_v_cached_gpu_stream() C.mlx_stream
+fn C.mlx_v_set_stream_override(s C.mlx_stream)
+fn C.mlx_v_clear_stream_override()
+fn C.mlx_v_stream_for_ops() C.mlx_stream
+fn C.mlx_v_ensure_error_handler(handler MlxErrorHandlerFunc)
 
 // Accessors for complex64 / float16 / bfloat16 (declared manually: the C
 // pointer types use `voidptr` to avoid `_Complex`/`__fp16` ABI type clashes).
@@ -124,17 +128,16 @@ fn c_error_handler(msg &char, _data voidptr) {
 	C.mlx_v_set_error(msg)
 }
 
-// setup installs the V error handler.  Setting it repeatedly is cheap and
-// idempotent, so every op can just call it.
+// setup installs the V error handler.  mlx.c guards the process-global
+// mlx_set_error_handler call with pthread_once, so this is cheap to repeat.
 @[inline]
 fn setup() {
-	C.mlx_set_error_handler(c_error_handler, 0, 0)
+	C.mlx_v_ensure_error_handler(c_error_handler)
 }
 
 // begin_op resets the recorded error before an op runs.
 @[inline]
 fn begin_op() {
-	C.mlx_set_error_handler(c_error_handler, 0, 0)
 	C.mlx_v_clear_error()
 }
 
@@ -143,6 +146,46 @@ fn begin_op() {
 fn check(rc int) {
 	if rc != 0 {
 		panic('MLX error: ${cstr(C.mlx_v_get_error())}')
+	}
+}
+
+// check_res is check() for ops that write into a pre-allocated result handle:
+// on error the handle is released before panicking, so the error path does
+// not leak it.
+@[inline]
+fn check_res(rc int, res C.mlx_array) {
+	if rc != 0 {
+		C.mlx_array_free(res)
+		check(rc)
+	}
+}
+
+// check_res2 is check_res() for two-output ops.
+@[inline]
+fn check_res2(rc int, r0 C.mlx_array, r1 C.mlx_array) {
+	if rc != 0 {
+		C.mlx_array_free(r0)
+		C.mlx_array_free(r1)
+		check(rc)
+	}
+}
+
+// check_vec is check_res() for vector-of-array results.
+@[inline]
+fn check_vec(rc int, vec C.mlx_vector_array) {
+	if rc != 0 {
+		C.mlx_vector_array_free(vec)
+		check(rc)
+	}
+}
+
+// check_vec2 is check_res() for two-vector-output ops.
+@[inline]
+fn check_vec2(rc int, v0 C.mlx_vector_array, v1 C.mlx_vector_array) {
+	if rc != 0 {
+		C.mlx_vector_array_free(v0)
+		C.mlx_vector_array_free(v1)
+		check(rc)
 	}
 }
 
@@ -185,18 +228,22 @@ pub fn gpu_available() bool {
 }
 
 // use_cpu makes subsequent ops run on the CPU (some linalg ops are CPU-only).
+// This flips process-wide MLX state and is not thread-safe.
 pub fn use_cpu() {
 	C.mlx_v_set_force_cpu(1)
-	mut d := device(.cpu, 0)
+	C.mlx_v_clear_stream_override()
+	d := device(.cpu, 0)
 	d.set_default()
 	d.free()
 }
 
 // use_gpu makes subsequent ops run on the GPU when one is available.
+// This flips process-wide MLX state and is not thread-safe.
 pub fn use_gpu() {
 	C.mlx_v_set_force_cpu(0)
+	C.mlx_v_clear_stream_override()
 	if gpu_available() {
-		mut d := device(.gpu, 0)
+		d := device(.gpu, 0)
 		d.set_default()
 		d.free()
 	}

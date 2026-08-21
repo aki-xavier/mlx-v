@@ -5,14 +5,15 @@ module mlx
 // layer_norm applies layer normalisation.  `weight`/`bias` may be empty.
 pub fn (a Array) layer_norm(weight Array, bias Array, eps f32) Array {
 	res := new_result()
-	check(C.mlx_fast_layer_norm(&res, a.raw(), weight.raw(), bias.raw(), eps, def_stream()))
+	check_res(C.mlx_fast_layer_norm(&res, a.raw(), weight.raw(), bias.raw(), eps, def_stream()),
+		res)
 	return wrap_array(res)
 }
 
 // rms_norm applies RMS normalisation.  `weight` may be empty.
 pub fn (a Array) rms_norm(weight Array, eps f32) Array {
 	res := new_result()
-	check(C.mlx_fast_rms_norm(&res, a.raw(), weight.raw(), eps, def_stream()))
+	check_res(C.mlx_fast_rms_norm(&res, a.raw(), weight.raw(), eps, def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -21,8 +22,8 @@ pub fn (a Array) rms_norm(weight Array, eps f32) Array {
 // "additive" or "masked".
 pub fn scaled_dot_product_attention(queries Array, keys Array, values Array, scale f32, mask_mode string, mask_arr Array, sinks Array) Array {
 	res := new_result()
-	check(C.mlx_fast_scaled_dot_product_attention(&res, queries.raw(), keys.raw(), values.raw(),
-		scale, mask_mode.str, mask_arr.raw(), sinks.raw(), def_stream()))
+	check_res(C.mlx_fast_scaled_dot_product_attention(&res, queries.raw(), keys.raw(),
+		values.raw(), scale, mask_mode.str, mask_arr.raw(), sinks.raw(), def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -45,69 +46,94 @@ pub fn no_optional_float() C.mlx_optional_float {
 // rope applies rotary position embeddings.  `freqs` may be empty.
 pub fn (a Array) rope(dims int, traditional bool, base C.mlx_optional_float, scale f32, offset int, freqs Array) Array {
 	res := new_result()
-	check(C.mlx_fast_rope(&res, a.raw(), dims, traditional, base, scale, offset, freqs.raw(),
-		def_stream()))
+	check_res(C.mlx_fast_rope(&res, a.raw(), dims, traditional, base, scale, offset, freqs.raw(),
+		def_stream()), res)
 	return wrap_array(res)
 }
 
-// MetalKernelConfig configures a custom Metal kernel launch.
+// MetalKernelConfig configures a custom Metal kernel launch.  The handle is
+// GC-managed; `free()` releases it deterministically.
 pub struct MetalKernelConfig {
 mut:
-	ctx   C.mlx_fast_metal_kernel_config
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (c MetalKernelConfig) raw() C.mlx_fast_metal_kernel_config {
+	if isnil(c.box) {
+		panic('mlx: MetalKernelConfig is uninitialised (zero value); build it with metal_kernel_config() before using it')
+	}
+	return C.mlx_fast_metal_kernel_config{
+		ctx: c.box.ctx
+	}
 }
 
 // metal_kernel_config returns an empty kernel configuration.
 pub fn metal_kernel_config() MetalKernelConfig {
 	return MetalKernelConfig{
-		ctx: C.mlx_fast_metal_kernel_config_new()
+		box: wrap_handle(C.mlx_fast_metal_kernel_config_new().ctx, free_metal_kernel_config_handle,
+			true)
 	}
 }
 
 pub fn (c MetalKernelConfig) add_output_arg(shape []int, dtype Dtype) {
-	C.mlx_fast_metal_kernel_config_add_output_arg(c.ctx, shape.data, shape.len, int(dtype))
+	C.mlx_fast_metal_kernel_config_add_output_arg(c.raw(), shape.data, shape.len, int(dtype))
 }
 
 pub fn (c MetalKernelConfig) set_grid(g1 int, g2 int, g3 int) {
-	C.mlx_fast_metal_kernel_config_set_grid(c.ctx, g1, g2, g3)
+	C.mlx_fast_metal_kernel_config_set_grid(c.raw(), g1, g2, g3)
 }
 
 pub fn (c MetalKernelConfig) set_thread_group(t1 int, t2 int, t3 int) {
-	C.mlx_fast_metal_kernel_config_set_thread_group(c.ctx, t1, t2, t3)
+	C.mlx_fast_metal_kernel_config_set_thread_group(c.raw(), t1, t2, t3)
 }
 
 pub fn (c MetalKernelConfig) set_init_value(v f32) {
-	C.mlx_fast_metal_kernel_config_set_init_value(c.ctx, v)
+	C.mlx_fast_metal_kernel_config_set_init_value(c.raw(), v)
 }
 
 pub fn (c MetalKernelConfig) set_verbose(v bool) {
-	C.mlx_fast_metal_kernel_config_set_verbose(c.ctx, v)
+	C.mlx_fast_metal_kernel_config_set_verbose(c.raw(), v)
 }
 
 pub fn (c MetalKernelConfig) add_template_arg_dtype(name string, dtype Dtype) {
-	C.mlx_fast_metal_kernel_config_add_template_arg_dtype(c.ctx, name.str, int(dtype))
+	C.mlx_fast_metal_kernel_config_add_template_arg_dtype(c.raw(), name.str, int(dtype))
 }
 
 pub fn (c MetalKernelConfig) add_template_arg_int(name string, v int) {
-	C.mlx_fast_metal_kernel_config_add_template_arg_int(c.ctx, name.str, v)
+	C.mlx_fast_metal_kernel_config_add_template_arg_int(c.raw(), name.str, v)
 }
 
 pub fn (c MetalKernelConfig) add_template_arg_bool(name string, v bool) {
-	C.mlx_fast_metal_kernel_config_add_template_arg_bool(c.ctx, name.str, v)
+	C.mlx_fast_metal_kernel_config_add_template_arg_bool(c.raw(), name.str, v)
 }
 
-pub fn (mut c MetalKernelConfig) free() {
-	if !c.freed {
-		c.freed = true
-		C.mlx_fast_metal_kernel_config_free(c.ctx)
+// free releases the config (idempotent; optional with the GC).
+pub fn (c &MetalKernelConfig) free() {
+	if isnil(c.box) {
+		return
 	}
+	mut box := c.box
+	box.release()
 }
 
-// MetalKernel is a custom Metal (GPU) kernel compiled from MSL source.
+// MetalKernel is a custom Metal (GPU) kernel compiled from MSL source.  The
+// handle is GC-managed; `free()` releases it deterministically.
 pub struct MetalKernel {
 mut:
-	ctx   C.mlx_fast_metal_kernel
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (k MetalKernel) raw() C.mlx_fast_metal_kernel {
+	if isnil(k.box) {
+		panic('mlx: MetalKernel is uninitialised (zero value); build it with metal_kernel() before using it')
+	}
+	return C.mlx_fast_metal_kernel{
+		ctx: k.box.ctx
+	}
 }
 
 // metal_kernel builds a kernel from Metal Shading Language source.
@@ -119,8 +145,8 @@ pub fn metal_kernel(name string, input_names []string, output_names []string, so
 		C.mlx_vector_string_free(out_names)
 	}
 	return MetalKernel{
-		ctx: C.mlx_fast_metal_kernel_new(name.str, in_names, out_names, source.str, header.str,
-			ensure_row_contiguous, atomic_outputs)
+		box: wrap_handle(C.mlx_fast_metal_kernel_new(name.str, in_names, out_names, source.str,
+			header.str, ensure_row_contiguous, atomic_outputs).ctx, free_metal_kernel_handle, true)
 	}
 }
 
@@ -133,13 +159,15 @@ pub fn (k MetalKernel) apply(inputs []Array, config MetalKernelConfig) []Array {
 		C.mlx_vector_array_free(vin)
 	}
 	out := C.mlx_vector_array_new()
-	check(C.mlx_fast_metal_kernel_apply(&out, k.ctx, vin, config.ctx, def_stream()))
+	check_vec(C.mlx_fast_metal_kernel_apply(&out, k.raw(), vin, config.raw(), def_stream()), out)
 	return array_vector_to_slice(out)
 }
 
-pub fn (mut k MetalKernel) free() {
-	if !k.freed {
-		k.freed = true
-		C.mlx_fast_metal_kernel_free(k.ctx)
+// free releases the kernel (idempotent; optional with the GC).
+pub fn (k &MetalKernel) free() {
+	if isnil(k.box) {
+		return
 	}
+	mut box := k.box
+	box.release()
 }

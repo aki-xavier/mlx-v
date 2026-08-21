@@ -28,6 +28,10 @@ int mlx_v_get_live_boxes(void);
 
 mlx_stream mlx_v_cached_cpu_stream(void);
 mlx_stream mlx_v_cached_gpu_stream(void);
+void mlx_v_set_stream_override(mlx_stream s);
+void mlx_v_clear_stream_override(void);
+mlx_stream mlx_v_stream_for_ops(void);
+void mlx_v_ensure_error_handler(mlx_error_handler_func handler);
 
 void mlx_v_register_finalizer(void *obj, void (*fn)(void *, void *));
 void mlx_v_gc_collect(void);

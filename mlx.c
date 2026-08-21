@@ -22,17 +22,49 @@
 #include <gc/gc.h>
 #include <mlx/c/mlx.h>
 
+#include "mlx_v.h"
+
 static __thread char mlx_v_error_buf[2048];
 static atomic_int mlx_v_force_cpu = 0;
 static atomic_int mlx_v_live_boxes = 0;
 
-static pthread_once_t mlx_v_stream_once = PTHREAD_ONCE_INIT;
+static pthread_once_t mlx_v_cpu_stream_once = PTHREAD_ONCE_INIT;
+static pthread_once_t mlx_v_gpu_stream_once = PTHREAD_ONCE_INIT;
 static mlx_stream mlx_v_cpu_stream = {0};
 static mlx_stream mlx_v_gpu_stream = {0};
 
-static void mlx_v_init_streams(void) {
+/* Process-wide stream override installed by Stream.set_default(); stored as
+ * the stream's inner pointer so it can be atomic. */
+static _Atomic(void *) mlx_v_stream_override = NULL;
+
+/* The error handler is installed exactly once (see mlx_v_ensure_error_handler). */
+static pthread_once_t mlx_v_error_once = PTHREAD_ONCE_INIT;
+static mlx_error_handler_func mlx_v_error_handler = NULL;
+
+static void mlx_v_install_error_handler(void) {
+    mlx_set_error_handler(mlx_v_error_handler, NULL, NULL);
+}
+
+/* The CPU and GPU caches are initialised independently, so touching the CPU
+ * stream never initialises the GPU backend (which may not exist). */
+static void mlx_v_init_cpu_stream(void) {
     mlx_v_cpu_stream = mlx_default_cpu_stream_new();
-    mlx_v_gpu_stream = mlx_default_gpu_stream_new();
+}
+
+static void mlx_v_init_gpu_stream(void) {
+    /* On machines without a GPU, fall back to the CPU stream so that
+     * mlx_v_stream_for_ops() never hands out an unusable GPU stream
+     * (preserves the old gpu_available() check in def_stream()). */
+    bool gpu = false;
+    mlx_metal_is_available(&gpu);
+    if (!gpu) {
+        mlx_cuda_is_available(&gpu);
+    }
+    if (gpu) {
+        mlx_v_gpu_stream = mlx_default_gpu_stream_new();
+    } else {
+        mlx_v_gpu_stream = mlx_v_cached_cpu_stream();
+    }
 }
 
 void mlx_v_note_box_alloc(void) {
@@ -56,13 +88,43 @@ int mlx_v_get_live_boxes(void) {
  * bindings, so caching one wrapper per device avoids a per-op allocation leak.
  * The cache is shared and initialised exactly once. */
 mlx_stream mlx_v_cached_cpu_stream(void) {
-    pthread_once(&mlx_v_stream_once, mlx_v_init_streams);
+    pthread_once(&mlx_v_cpu_stream_once, mlx_v_init_cpu_stream);
     return mlx_v_cpu_stream;
 }
 
 mlx_stream mlx_v_cached_gpu_stream(void) {
-    pthread_once(&mlx_v_stream_once, mlx_v_init_streams);
+    pthread_once(&mlx_v_gpu_stream_once, mlx_v_init_gpu_stream);
     return mlx_v_gpu_stream;
+}
+
+void mlx_v_set_stream_override(mlx_stream s) {
+    atomic_store(&mlx_v_stream_override, s.ctx);
+}
+
+void mlx_v_clear_stream_override(void) {
+    atomic_store(&mlx_v_stream_override, NULL);
+}
+
+/* The stream ops run on: the override when one is set (Stream.set_default()),
+ * otherwise the cached default stream selected by the force-CPU flag. */
+mlx_stream mlx_v_stream_for_ops(void) {
+    void *o = atomic_load(&mlx_v_stream_override);
+    if (o != NULL) {
+        mlx_stream s = {o};
+        return s;
+    }
+    if (mlx_v_get_force_cpu()) {
+        return mlx_v_cached_cpu_stream();
+    }
+    return mlx_v_cached_gpu_stream();
+}
+
+/* Installs the error handler exactly once: mlx_set_error_handler writes a
+ * process-global variable, so repeating it on every op is an unsynchronised
+ * write. */
+void mlx_v_ensure_error_handler(mlx_error_handler_func handler) {
+    mlx_v_error_handler = handler;
+    pthread_once(&mlx_v_error_once, mlx_v_install_error_handler);
 }
 
 /* Boehm GC wrappers (kept out of the V-facing declarations to avoid

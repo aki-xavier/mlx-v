@@ -7,7 +7,7 @@ pub fn load(file string) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check(C.mlx_load(&res, file.str, def_stream()))
+	check_res(C.mlx_load(&res, file.str, def_stream()), res)
 	return wrap_array(res)
 }
 
@@ -24,11 +24,16 @@ pub fn load_safetensors(file string) (MapStringToArray, MapStringToString) {
 	begin_op()
 	m0 := C.mlx_map_string_to_array_new()
 	m1 := C.mlx_map_string_to_string_new()
-	check(C.mlx_load_safetensors(&m0, &m1, file.str, def_stream()))
+	rc := C.mlx_load_safetensors(&m0, &m1, file.str, def_stream())
+	if rc != 0 {
+		C.mlx_map_string_to_array_free(m0)
+		C.mlx_map_string_to_string_free(m1)
+		check(rc)
+	}
 	return MapStringToArray{
-		ctx: m0
+		box: wrap_handle(m0.ctx, free_map_string_to_array_handle, true)
 	}, MapStringToString{
-		ctx: m1
+		box: wrap_handle(m1.ctx, free_map_string_to_string_handle, true)
 	}
 }
 
@@ -36,14 +41,25 @@ pub fn load_safetensors(file string) (MapStringToArray, MapStringToString) {
 pub fn save_safetensors(file string, tensors MapStringToArray, metadata MapStringToString) {
 	setup()
 	begin_op()
-	check(C.mlx_save_safetensors(file.str, tensors.ctx, metadata.ctx))
+	check(C.mlx_save_safetensors(file.str, tensors.raw(), metadata.raw()))
 }
 
-// Gguf wraps an MLX GGUF object.
+// Gguf wraps an MLX GGUF object.  The handle is GC-managed; `free()` releases
+// it deterministically.
 pub struct Gguf {
 mut:
-	ctx   C.mlx_io_gguf
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (g Gguf) raw() C.mlx_io_gguf {
+	if isnil(g.box) {
+		panic('mlx: Gguf is uninitialised (zero value); build it with load_gguf()/new_gguf() before using it')
+	}
+	return C.mlx_io_gguf{
+		ctx: g.box.ctx
+	}
 }
 
 // load_gguf reads a GGUF file.
@@ -51,31 +67,37 @@ pub fn load_gguf(file string) Gguf {
 	setup()
 	begin_op()
 	g := C.mlx_io_gguf_new()
-	check(C.mlx_load_gguf(&g, file.str, def_stream()))
+	rc := C.mlx_load_gguf(&g, file.str, def_stream())
+	if rc != 0 {
+		C.mlx_io_gguf_free(g)
+		check(rc)
+	}
 	return Gguf{
-		ctx: g
+		box: wrap_handle(g.ctx, free_gguf_handle, true)
 	}
 }
 
 // new_gguf returns an empty GGUF object (for writing).
 pub fn new_gguf() Gguf {
 	return Gguf{
-		ctx: C.mlx_io_gguf_new()
+		box: wrap_handle(C.mlx_io_gguf_new().ctx, free_gguf_handle, true)
 	}
 }
 
-pub fn (mut g Gguf) free() {
-	if !g.freed {
-		g.freed = true
-		C.mlx_io_gguf_free(g.ctx)
+// free releases the GGUF object (idempotent; optional with the GC).
+pub fn (g &Gguf) free() {
+	if isnil(g.box) {
+		return
 	}
+	mut box := g.box
+	box.release()
 }
 
 // save writes the GGUF object to `file`.
 pub fn (g Gguf) save(file string) {
 	setup()
 	begin_op()
-	check(C.mlx_save_gguf(file.str, g.ctx))
+	check(C.mlx_save_gguf(file.str, g.raw()))
 }
 
 // keys returns the tensor names in the GGUF.
@@ -83,9 +105,13 @@ pub fn (g Gguf) keys() []string {
 	v := C.mlx_vector_string_new()
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_get_keys(&v, g.ctx))
-	mut vs := VectorString{
-		ctx: v
+	rc := C.mlx_io_gguf_get_keys(&v, g.raw())
+	if rc != 0 {
+		C.mlx_vector_string_free(v)
+		check(rc)
+	}
+	vs := VectorString{
+		box: wrap_handle(v.ctx, free_vector_string_handle, true)
 	}
 	defer {
 		vs.free()
@@ -98,7 +124,7 @@ pub fn (g Gguf) get_array(key string) Array {
 	res := C.mlx_array_new()
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_get_array(&res, g.ctx, key.str))
+	check_res(C.mlx_io_gguf_get_array(&res, g.raw(), key.str), res)
 	return wrap_array(res)
 }
 
@@ -107,7 +133,7 @@ pub fn (g Gguf) metadata_string(key string) string {
 	s := C.mlx_string_new()
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_get_metadata_string(&s, g.ctx, key.str))
+	check(C.mlx_io_gguf_get_metadata_string(&s, g.raw(), key.str))
 	res := cstr(C.mlx_string_data(s))
 	C.mlx_string_free(s)
 	return res
@@ -117,12 +143,12 @@ pub fn (g Gguf) metadata_string(key string) string {
 pub fn (g Gguf) set_array(key string, arr Array) {
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_set_array(g.ctx, key.str, arr.raw()))
+	check(C.mlx_io_gguf_set_array(g.raw(), key.str, arr.raw()))
 }
 
 // set_metadata_string stores a string metadata entry.
 pub fn (g Gguf) set_metadata_string(key string, value string) {
 	setup()
 	begin_op()
-	check(C.mlx_io_gguf_set_metadata_string(g.ctx, key.str, value.str))
+	check(C.mlx_io_gguf_set_metadata_string(g.raw(), key.str, value.str))
 }

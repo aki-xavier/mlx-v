@@ -1,16 +1,29 @@
 module mlx
 
 // Device represents an MLX execution device (a CPU or a specific GPU).
+//
+// The handle is reclaimed automatically by the GC once the last `Device`
+// copy goes away; `free()` releases it deterministically.
 pub struct Device {
 mut:
-	ctx   C.mlx_device
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (d Device) raw() C.mlx_device {
+	if isnil(d.box) {
+		panic('mlx: Device is uninitialised (zero value); build it with device()/default_device() before using it')
+	}
+	return C.mlx_device{
+		ctx: d.box.ctx
+	}
 }
 
 // device returns a new device of the given `dtype` and `index`.
 pub fn device(dtype DeviceType, index int) Device {
 	return Device{
-		ctx: C.mlx_device_new_type(int(dtype), index)
+		box: wrap_handle(C.mlx_device_new_type(int(dtype), index).ctx, free_device_handle, true)
 	}
 }
 
@@ -21,7 +34,7 @@ pub fn default_device() Device {
 	begin_op()
 	check(C.mlx_get_default_device(&dev))
 	return Device{
-		ctx: dev
+		box: wrap_handle(dev.ctx, free_device_handle, true)
 	}
 }
 
@@ -34,18 +47,19 @@ pub fn device_count(dtype DeviceType) int {
 	return n
 }
 
-// free releases the device (idempotent).
-pub fn (mut d Device) free() {
-	if !d.freed {
-		d.freed = true
-		C.mlx_device_free(d.ctx)
+// free releases the device (idempotent; optional with the GC).
+pub fn (d &Device) free() {
+	if isnil(d.box) {
+		return
 	}
+	mut box := d.box
+	box.release()
 }
 
 // str returns a human-readable description of the device.
 pub fn (d Device) str() string {
 	str_ := C.mlx_string_new()
-	C.mlx_device_tostring(&str_, d.ctx)
+	C.mlx_device_tostring(&str_, d.raw())
 	res := cstr(C.mlx_string_data(str_))
 	C.mlx_string_free(str_)
 	return res
@@ -56,7 +70,7 @@ pub fn (d Device) index() int {
 	mut idx := 0
 	setup()
 	begin_op()
-	check(C.mlx_device_get_index(&idx, d.ctx))
+	check(C.mlx_device_get_index(&idx, d.raw()))
 	return idx
 }
 
@@ -65,7 +79,7 @@ pub fn (d Device) dtype() DeviceType {
 	mut t := 0
 	setup()
 	begin_op()
-	check(C.mlx_device_get_type(&t, d.ctx))
+	check(C.mlx_device_get_type(&t, d.raw()))
 	return unsafe { DeviceType(t) }
 }
 
@@ -74,18 +88,27 @@ pub fn (d Device) available() bool {
 	mut a := false
 	setup()
 	begin_op()
-	check(C.mlx_device_is_available(&a, d.ctx))
+	check(C.mlx_device_is_available(&a, d.raw()))
 	return a
 }
 
-// set_default makes this device the default MLX device.
+// set_default makes this device the default MLX device.  This is process-wide
+// and not thread-safe.  It also clears any stream override (see
+// Stream.set_default) and syncs the force-CPU flag used by def_stream(), so
+// use_cpu()/use_gpu() stay consistent.
 pub fn (d Device) set_default() {
 	setup()
 	begin_op()
-	check(C.mlx_set_default_device(d.ctx))
+	check(C.mlx_set_default_device(d.raw()))
+	C.mlx_v_clear_stream_override()
+	if d.dtype() == .cpu {
+		C.mlx_v_set_force_cpu(1)
+	} else {
+		C.mlx_v_set_force_cpu(0)
+	}
 }
 
 // == reports whether two devices are the same.
 pub fn (d Device) == (o Device) bool {
-	return C.mlx_device_equal(d.ctx, o.ctx)
+	return C.mlx_device_equal(d.raw(), o.raw())
 }

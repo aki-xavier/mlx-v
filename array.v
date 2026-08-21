@@ -64,7 +64,7 @@ pub fn bool_scalar(v bool) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new_bool(v)
-	fail_on_error()
+	fail_on_error(ctx)
 	return wrap_array(ctx)
 }
 
@@ -73,7 +73,7 @@ pub fn int_scalar(v int) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new_int(v)
-	fail_on_error()
+	fail_on_error(ctx)
 	return wrap_array(ctx)
 }
 
@@ -82,7 +82,7 @@ pub fn f32_scalar(v f32) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new_float32(v)
-	fail_on_error()
+	fail_on_error(ctx)
 	return wrap_array(ctx)
 }
 
@@ -91,7 +91,7 @@ pub fn f64_scalar(v f64) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new_float64(v)
-	fail_on_error()
+	fail_on_error(ctx)
 	return wrap_array(ctx)
 }
 
@@ -100,7 +100,7 @@ pub fn complex_scalar(re f32, im f32) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new_complex(re, im)
-	fail_on_error()
+	fail_on_error(ctx)
 	return wrap_array(ctx)
 }
 
@@ -109,7 +109,7 @@ pub fn array_with[T](data []T, shape []int, dtype Dtype) Array {
 	setup()
 	begin_op()
 	ctx := C.mlx_array_new_data(voidptr(data.data), shape.data, shape.len, int(dtype))
-	fail_on_error()
+	fail_on_error(ctx)
 	return wrap_array(ctx)
 }
 
@@ -170,11 +170,13 @@ pub fn complex_from(re Array, im Array) Array {
 	return re_c.add(i.multiply(im_c))
 }
 
-// fail_on_error panics when the last constructor call recorded an error.
+// fail_on_error panics when the last constructor call recorded an error,
+// releasing the half-constructed handle first so the error path does not leak.
 @[inline]
-fn fail_on_error() {
+fn fail_on_error(ctx C.mlx_array) {
 	msg := cstr(C.mlx_v_get_error())
 	if msg.len > 0 {
+		C.mlx_array_free(ctx)
 		panic('MLX error: ${msg}')
 	}
 }
@@ -196,7 +198,8 @@ pub fn (a Array) clone() Array {
 	return wrap_array(res)
 }
 
-// str returns a human-readable description of the array.
+// str returns a human-readable description of the array.  Note that printing
+// an array forces its evaluation, so this is a hidden synchronisation point.
 pub fn (a Array) str() string {
 	str_ := C.mlx_string_new()
 	C.mlx_array_tostring(&str_, a.raw())
@@ -270,7 +273,6 @@ pub fn (a Array) dtype() Dtype {
 
 // item_bool reads a scalar boolean array.
 pub fn (a Array) item_bool() bool {
-	a.eval()
 	mut res := false
 	check(C.mlx_array_item_bool(&res, a.raw()))
 	return res
@@ -278,7 +280,6 @@ pub fn (a Array) item_bool() bool {
 
 // item_i32 reads a scalar int32 array.
 pub fn (a Array) item_i32() int {
-	a.eval()
 	mut res := 0
 	check(C.mlx_array_item_int32(&res, a.raw()))
 	return res
@@ -286,7 +287,6 @@ pub fn (a Array) item_i32() int {
 
 // item_i64 reads a scalar int64 array.
 pub fn (a Array) item_i64() i64 {
-	a.eval()
 	mut res := i64(0)
 	check(C.mlx_array_item_int64(&res, a.raw()))
 	return res
@@ -294,7 +294,6 @@ pub fn (a Array) item_i64() i64 {
 
 // item_f32 reads a scalar float32 array.
 pub fn (a Array) item_f32() f32 {
-	a.eval()
 	mut res := f32(0)
 	check(C.mlx_array_item_float32(&res, a.raw()))
 	return res
@@ -302,7 +301,6 @@ pub fn (a Array) item_f32() f32 {
 
 // item_f64 reads a scalar float64 array.
 pub fn (a Array) item_f64() f64 {
-	a.eval()
 	mut res := f64(0)
 	check(C.mlx_array_item_float64(&res, a.raw()))
 	return res
@@ -414,7 +412,6 @@ pub fn (a Array) wait() {
 
 // item_complex64 reads a scalar complex64 array.
 pub fn (a Array) item_complex64() Complex64 {
-	a.eval()
 	mut res := Complex64{}
 	check(C.mlx_array_item_complex64(voidptr(&res), a.raw()))
 	return res
@@ -441,7 +438,6 @@ pub fn (a Array) data_complex64() []Complex64 {
 
 // item_f16 reads a scalar float16 array as an f32.
 pub fn (a Array) item_f16() f32 {
-	a.eval()
 	mut bits := u16(0)
 	check(C.mlx_array_item_float16(voidptr(&bits), a.raw()))
 	return C.mlx_v_f16_to_f32(bits)
@@ -468,7 +464,6 @@ pub fn (a Array) data_f16() []f32 {
 
 // item_bf16 reads a scalar bfloat16 array as an f32.
 pub fn (a Array) item_bf16() f32 {
-	a.eval()
 	mut bits := u16(0)
 	check(C.mlx_array_item_bfloat16(voidptr(&bits), a.raw()))
 	return C.mlx_v_bf16_to_f32(bits)

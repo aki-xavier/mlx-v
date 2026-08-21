@@ -1,18 +1,29 @@
 module mlx
 
 // vector.v — wrappers for MLX vector-of-array / int / string containers.
+// All handles are GC-managed; `free()` releases them deterministically.
 
 // VectorArray is a growable list of MLX arrays.
 pub struct VectorArray {
 mut:
-	ctx   C.mlx_vector_array
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (v VectorArray) raw() C.mlx_vector_array {
+	if isnil(v.box) {
+		panic('mlx: VectorArray is uninitialised (zero value); build it with new_vector_array()/array_vector() before using it')
+	}
+	return C.mlx_vector_array{
+		ctx: v.box.ctx
+	}
 }
 
 // new_vector_array returns an empty vector of arrays.
 pub fn new_vector_array() VectorArray {
 	return VectorArray{
-		ctx: C.mlx_vector_array_new()
+		box: wrap_handle(C.mlx_vector_array_new().ctx, free_vector_array_handle, true)
 	}
 }
 
@@ -23,27 +34,28 @@ pub fn array_vector(arrays []Array) VectorArray {
 		C.mlx_vector_array_append_value(vec, a.raw())
 	}
 	return VectorArray{
-		ctx: vec
+		box: wrap_handle(vec.ctx, free_vector_array_handle, true)
 	}
 }
 
 // free releases the vector (but not the arrays it holds); idempotent.
-pub fn (mut v VectorArray) free() {
-	if !v.freed {
-		v.freed = true
-		C.mlx_vector_array_free(v.ctx)
+pub fn (v &VectorArray) free() {
+	if isnil(v.box) {
+		return
 	}
+	mut box := v.box
+	box.release()
 }
 
 // len returns the number of arrays.
 pub fn (v VectorArray) len() int {
-	return int(C.mlx_vector_array_size(v.ctx))
+	return int(C.mlx_vector_array_size(v.raw()))
 }
 
 // get returns the array at `idx`.
 pub fn (v VectorArray) get(idx int) Array {
 	res := C.mlx_array_new()
-	C.mlx_vector_array_get(&res, v.ctx, usize(idx))
+	C.mlx_vector_array_get(&res, v.raw(), usize(idx))
 	return wrap_array(res)
 }
 
@@ -59,8 +71,8 @@ pub fn (v VectorArray) to_slice() []Array {
 
 // array_vector_to_slice converts a raw vector into a V slice of arrays.
 fn array_vector_to_slice(vec C.mlx_vector_array) []Array {
-	mut v := VectorArray{
-		ctx: vec
+	v := VectorArray{
+		box: wrap_handle(vec.ctx, free_vector_array_handle, true)
 	}
 	defer {
 		v.free()
@@ -71,54 +83,78 @@ fn array_vector_to_slice(vec C.mlx_vector_array) []Array {
 // VectorInt is a growable list of ints.
 pub struct VectorInt {
 mut:
-	ctx   C.mlx_vector_int
-	freed bool
+	box &HandleBox = unsafe { nil }
 }
 
-pub fn (mut v VectorInt) free() {
-	if !v.freed {
-		v.freed = true
-		C.mlx_vector_int_free(v.ctx)
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (v VectorInt) raw() C.mlx_vector_int {
+	if isnil(v.box) {
+		panic('mlx: VectorInt is uninitialised (zero value)')
+	}
+	return C.mlx_vector_int{
+		ctx: v.box.ctx
 	}
 }
 
+// free releases the vector (idempotent; optional with the GC).
+pub fn (v &VectorInt) free() {
+	if isnil(v.box) {
+		return
+	}
+	mut box := v.box
+	box.release()
+}
+
 pub fn (v VectorInt) len() int {
-	return int(C.mlx_vector_int_size(v.ctx))
+	return int(C.mlx_vector_int_size(v.raw()))
 }
 
 pub fn (v VectorInt) get(idx int) int {
 	mut res := 0
-	C.mlx_vector_int_get(&res, v.ctx, usize(idx))
+	C.mlx_vector_int_get(&res, v.raw(), usize(idx))
 	return res
 }
 
 // VectorString is a growable list of strings.
 pub struct VectorString {
 mut:
-	ctx   C.mlx_vector_string
-	freed bool
+	box &HandleBox = unsafe { nil }
+}
+
+// raw returns the underlying MLX handle (low level).
+@[inline]
+pub fn (v VectorString) raw() C.mlx_vector_string {
+	if isnil(v.box) {
+		panic('mlx: VectorString is uninitialised (zero value); build it with new_vector_string() before using it')
+	}
+	return C.mlx_vector_string{
+		ctx: v.box.ctx
+	}
 }
 
 pub fn new_vector_string() VectorString {
 	return VectorString{
-		ctx: C.mlx_vector_string_new()
+		box: wrap_handle(C.mlx_vector_string_new().ctx, free_vector_string_handle, true)
 	}
 }
 
-pub fn (mut v VectorString) free() {
-	if !v.freed {
-		v.freed = true
-		C.mlx_vector_string_free(v.ctx)
+// free releases the vector (idempotent; optional with the GC).
+pub fn (v &VectorString) free() {
+	if isnil(v.box) {
+		return
 	}
+	mut box := v.box
+	box.release()
 }
 
 pub fn (v VectorString) len() int {
-	return int(C.mlx_vector_string_size(v.ctx))
+	return int(C.mlx_vector_string_size(v.raw()))
 }
 
 pub fn (v VectorString) get(idx int) string {
 	mut res := &char(unsafe { nil })
-	C.mlx_vector_string_get(&res, v.ctx, usize(idx))
+	C.mlx_vector_string_get(&res, v.raw(), usize(idx))
 	return cstr(res)
 }
 

@@ -692,9 +692,21 @@ pub fn (a Array) logsumexp() Array {
 }
 
 // median returns the median of all elements.
+//
+// mlx-c 0.6.0's mlx_median has an assertion bug on the no-axis path: passing
+// axes=nil / axes_num=0 builds an empty axes vector, which the core median
+// feeds to flatten(start_axis==ndim), tripping
+// `[flatten] start_axis must be less than or equal to end_axis` (see
+// ml-explore/mlx-c mlx/c/ops.cpp:mlx_median). Work around it by passing the
+// explicit all-axes list [0, 1, ..., ndim-1], which is exactly what the core
+// full-reduce median overload builds anyway.
 pub fn (a Array) median() Array {
 	res := new_result()
-	check_res(C.mlx_median(&res, a.raw(), unsafe { nil }, 0, false, def_stream()), res)
+	mut axes := []int{}
+	for i in 0 .. a.ndim() {
+		axes << i
+	}
+	check_res(C.mlx_median(&res, a.raw(), axes.data, axes.len, false, def_stream()), res)
 	return wrap_array(res)
 }
 

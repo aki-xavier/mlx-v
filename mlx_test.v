@@ -124,6 +124,48 @@ fn test_reductions() {
 	assert rowsum.data_f32() == [f32(3), 7]
 }
 
+fn test_median() {
+	// Regression: mlx-c 0.6.0's no-axis mlx_median asserted on
+	// `[flatten] start_axis must be less than or equal to end_axis` when given
+	// axes=nil / axes_num=0. The wrapper now passes the explicit all-axes list.
+	a := array_f32([f32(1), 2, 3, 4, 5, 6], [2, 3])
+	defer {
+		a.free()
+	}
+
+	// even count
+	m := a.median()
+	defer {
+		m.free()
+	}
+	assert m.item_f32() == 3.5
+
+	// odd count
+	b := array_f32([f32(1), 2, 3, 4, 5], [5])
+	defer {
+		b.free()
+	}
+	mb := b.median()
+	defer {
+		mb.free()
+	}
+	assert mb.item_f32() == 3.0
+
+	// median_axis: along axis 1 of a 2x3 -> [2, 5]
+	rowmed := a.median_axis(1, false)
+	defer {
+		rowmed.free()
+	}
+	assert rowmed.data_f32() == [f32(2.0), 5.0]
+
+	// median_axes over every axis == full median
+	allmed := a.median_axes([0, 1], false)
+	defer {
+		allmed.free()
+	}
+	assert allmed.item_f32() == 3.5
+}
+
 fn test_matmul() {
 	a := array_f32([f32(1), 2, 3, 4, 5, 6], [2, 3])
 	b := array_f32([f32(7), 8, 9, 10, 11, 12], [3, 2])

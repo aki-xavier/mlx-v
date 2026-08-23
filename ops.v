@@ -710,6 +710,23 @@ pub fn (a Array) median() Array {
 	return wrap_array(res)
 }
 
+// median_axis returns the median of the elements along `axis`. The mlx-c C
+// API has no dedicated mlx_median_axis, so a single-element axes list is
+// passed to the general mlx_median.
+pub fn (a Array) median_axis(axis int, keepdims bool) Array {
+	res := new_result()
+	mut ax := [axis]
+	check_res(C.mlx_median(&res, a.raw(), ax.data, ax.len, keepdims, def_stream()), res)
+	return wrap_array(res)
+}
+
+// median_axes returns the median of the elements along the given `axes`.
+pub fn (a Array) median_axes(axes []int, keepdims bool) Array {
+	res := new_result()
+	check_res(C.mlx_median(&res, a.raw(), axes.data, axes.len, keepdims, def_stream()), res)
+	return wrap_array(res)
+}
+
 // var_axis returns the variance along `axis` (population variance ddof=0 by default).
 pub fn (a Array) var_axis(axis int, keepdims bool, ddof int) Array {
 	res := new_result()

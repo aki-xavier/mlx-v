@@ -70,6 +70,25 @@ pub fn (a Array) svd(compute_uv bool) []Array {
 	return array_vector_to_slice(vec)
 }
 
+// svd_cpu evaluates svd on the CPU (MLX has no GPU SVD on this build), restoring
+// the caller's default device afterwards.
+pub fn (a Array) svd_cpu(compute_uv bool) []Array {
+	prev := default_device()
+	was_gpu := prev.dtype() == .gpu
+	prev.free()
+	defer {
+		if was_gpu {
+			use_gpu()
+		}
+	}
+	use_cpu()
+	setup()
+	begin_op()
+	vec := C.mlx_vector_array_new()
+	check_vec(C.mlx_linalg_svd(&vec, a.raw(), compute_uv, cpu_stream().raw()), vec)
+	return array_vector_to_slice(vec)
+}
+
 // lu returns the LU decomposition as [P, L, U].
 pub fn (a Array) lu() []Array {
 	setup()
@@ -135,6 +154,23 @@ pub fn (a Array) eigh_cpu(uplo string) (Array, Array) {
 pub fn (a Array) eigvals() Array {
 	res := new_result()
 	check_res(C.mlx_linalg_eigvals(&res, a.raw(), def_stream()), res)
+	return wrap_array(res)
+}
+
+// eigvals_cpu evaluates eigvals on the CPU (MLX has no GPU eigendecomposition on
+// this build), restoring the caller's default device afterwards.
+pub fn (a Array) eigvals_cpu() Array {
+	prev := default_device()
+	was_gpu := prev.dtype() == .gpu
+	prev.free()
+	defer {
+		if was_gpu {
+			use_gpu()
+		}
+	}
+	use_cpu()
+	res := new_result()
+	check_res(C.mlx_linalg_eigvals(&res, a.raw(), cpu_stream().raw()), res)
 	return wrap_array(res)
 }
 

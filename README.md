@@ -39,9 +39,6 @@ fn main() {
   reclaimed once the last `Array` referencing them goes away, so `free()` is
   optional.  `mlx.gc_collect()` forces a collection cycle and
   `mlx.live_arrays()` reports the number of live handles.
-  **Requires V's Boehm collector (`v -gc boehm`, the default mode)** — the
-  conservative scan must be able to see the `Array` boxes inside V's heap
-  allocations, which only happens when V's own heap is Boehm-managed.
 - **Proper error handling** — MLX errors become V panics with the original
   message (instead of MLX's default `abort()`).
 
@@ -93,12 +90,6 @@ Run the test suite:
 ```sh
 v test .
 ```
-
-> **Note on the GC:** the automatic handle reclamation relies on V's Boehm
-> collector, so consumers must compile with `-gc boehm` (which is V's default
-> mode — no flag is normally needed).  V's bundled bdw-gc supplies the
-> `GC_MALLOC` / `GC_register_finalizer` symbols used by `gc.v`, so the module
-> does not link a separate `-lgc`.
 
 ## API overview
 

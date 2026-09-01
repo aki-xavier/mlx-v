@@ -11,24 +11,6 @@ module mlx
 // tiny C helpers in `mlx.c`/`mlx_v.h`, so no V module-level globals are needed
 // and consumers do not need `-enable-globals`.
 
-// --- C toolchain wiring -----------------------------------------------------
-
-// The GC-backed `Array` (see gc.v) relies on V's Boehm collector: V's own heap
-// allocations (slices holding `Array` values) must live on the Boehm heap so
-// the conservative scan can find the `ArrayBox` pointers stored in them.
-// Without `-gc boehm` those pointers live on the malloc heap, Boehm never sees
-// them, and the finalizers run too early (use-after-free).  `-gc boehm` is V's
-// default mode and provides the bundled bdw-gc + GC_THREADS defines, so no
-// extra -lgc / -L flags are needed here.
-//
-// Enforce the requirement at compile time instead of crashing at runtime: the
-// `?` makes `$if gcboehm` evaluate to false (rather than "undefined ident")
-// when a consumer compiles with `-gc none`.
-$if gcboehm ? {
-} $else {
-	$compile_error('mlx-v requires V Boehm GC: compile with `v` (default) or `v -gc boehm`, not `v -gc none`')
-}
-
 // mlx-c include/library search paths.  Homebrew (Apple Silicon) is the
 // default.  For Intel Homebrew, Linux/CUDA, or a custom build, set
 // `MLX_INCLUDE_DIR` and `MLX_LIB_DIR` (the extra -I/-L flags are harmless when

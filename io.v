@@ -3,11 +3,15 @@ module mlx
 // io.v — array serialisation (.npy/.npz/.safetensors/.gguf).
 
 // load reads an array from `file` (.npy or a single-tensor .safetensors).
+// Loads always run on the default CPU stream: MLX deliberately does not
+// implement `Load::eval_gpu` (loads are plain file reads into unified
+// memory), so binding the lazy load to a GPU stream would make the array
+// fail on evaluation.
 pub fn load(file string) Array {
 	setup()
 	begin_op()
 	res := C.mlx_array_new()
-	check_res(C.mlx_load(&res, file.str, def_stream()), res)
+	check_res(C.mlx_load(&res, file.str, cpu_stream().raw()), res)
 	return wrap_array(res)
 }
 
@@ -24,7 +28,7 @@ pub fn load_safetensors(file string) (MapStringToArray, MapStringToString) {
 	begin_op()
 	m0 := C.mlx_map_string_to_array_new()
 	m1 := C.mlx_map_string_to_string_new()
-	rc := C.mlx_load_safetensors(&m0, &m1, file.str, def_stream())
+	rc := C.mlx_load_safetensors(&m0, &m1, file.str, cpu_stream().raw())
 	if rc != 0 {
 		C.mlx_map_string_to_array_free(m0)
 		C.mlx_map_string_to_string_free(m1)
@@ -67,7 +71,7 @@ pub fn load_gguf(file string) Gguf {
 	setup()
 	begin_op()
 	g := C.mlx_io_gguf_new()
-	rc := C.mlx_load_gguf(&g, file.str, def_stream())
+	rc := C.mlx_load_gguf(&g, file.str, cpu_stream().raw())
 	if rc != 0 {
 		C.mlx_io_gguf_free(g)
 		check(rc)

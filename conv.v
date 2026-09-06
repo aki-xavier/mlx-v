@@ -40,6 +40,24 @@ pub fn conv_transpose2d_full(x Array, w Array, stride []int, padding []int, dila
 	return wrap_array(res)
 }
 
+// conv1d computes a 1D convolution with symmetric stride/padding/dilation.
+// x is [n, l, in], weights [out, k, in].
+pub fn conv1d(x Array, w Array, stride int, padding int, groups int) Array {
+	res := new_result()
+	check_res(C.mlx_conv1d(&res, x.raw(), w.raw(), stride, padding, 1, groups, def_stream()),
+		res)
+	return wrap_array(res)
+}
+
+// conv3d computes a 3D convolution with symmetric stride/padding/dilation.
+// x is [n, d, h, w, in], weights [out, kd, kh, kw, in].
+pub fn conv3d(x Array, w Array, stride int, padding int, groups int) Array {
+	res := new_result()
+	check_res(C.mlx_conv3d(&res, x.raw(), w.raw(), stride, stride, stride, padding, padding,
+		padding, 1, 1, 1, groups, def_stream()), res)
+	return wrap_array(res)
+}
+
 // pad pads `a` along `axes` with the given low/high widths and a constant value.
 pub fn pad(a Array, axes []int, low []int, high []int, value f32) Array {
 	v := f32_scalar(value)

@@ -49,7 +49,7 @@ pub fn new_payload_closure(pair &PayloadPair) Closure {
 // mlx_compile) so callers can use the standard Closure API.
 pub fn wrap_closure_pub(ctx C.mlx_closure) Closure {
 	return Closure{
-		box: wrap_handle(ctx, free_closure_handle, true)
+		box: wrap_handle(ctx.ctx, free_closure_handle, true)
 	}
 }
 

@@ -20,6 +20,10 @@ type Finalizer = fn (obj voidptr, cd voidptr)
 fn C.mlx_v_register_finalizer(obj voidptr, fn_ Finalizer)
 fn C.mlx_v_gc_collect()
 fn C.mlx_v_gc_malloc(n usize) voidptr
+fn C.mlx_v_atomic_xchg_freed(p &int) int
+fn C.mlx_v_note_handle_alloc()
+fn C.mlx_v_note_handle_free()
+fn C.mlx_v_get_live_handles() int
 
 // register_finalizer attaches `fn_` to `obj` so the GC calls it when `obj`
 // becomes unreachable.
@@ -38,4 +42,11 @@ pub fn gc_collect() {
 // wrapper boxes (useful for detecting leaks; the GC frees them lazily).
 pub fn live_arrays() int {
 	return C.mlx_v_get_live_boxes()
+}
+
+// live_handles returns the number of non-array MLX handles (streams, devices,
+// closures, ...) currently held by live owned boxes.  Shared/cached handles
+// with owned == false are not counted.
+pub fn live_handles() int {
+	return C.mlx_v_get_live_handles()
 }

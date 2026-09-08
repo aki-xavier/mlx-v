@@ -5,7 +5,7 @@ module mlx
 struct ArrayBox {
 mut:
 	ctx   C.mlx_array
-	freed bool
+	freed int
 }
 
 // Array is an N-dimensional MLX array (a lazy tensor).
@@ -33,20 +33,19 @@ pub fn (a Array) raw() C.mlx_array {
 // array_finalizer releases the MLX handle when its box is garbage-collected.
 fn array_finalizer(obj voidptr, _cd voidptr) {
 	mut box := unsafe { &ArrayBox(obj) }
-	if !box.freed {
-		box.freed = true
+	if C.mlx_v_atomic_xchg_freed(unsafe { &box.freed }) == 0 {
 		C.mlx_array_free(box.ctx)
 		C.mlx_v_note_box_free()
 	}
 }
 
 // wrap_array boxes a raw MLX handle and registers its finalizer.
-fn wrap_array(ctx C.mlx_array) Array {
+pub fn wrap_array(ctx C.mlx_array) Array {
 	// Allocate the box from the Boehm GC heap explicitly (GC_MALLOC), rather
 	// than via V's `&ArrayBox{}`, so the GC tracks it and runs the finalizer.
 	mut box := unsafe { &ArrayBox(C.mlx_v_gc_malloc(sizeof(ArrayBox))) }
 	box.ctx = ctx
-	box.freed = false
+	box.freed = 0
 	C.mlx_v_note_box_alloc()
 	register_finalizer(box, array_finalizer)
 	return Array{
@@ -187,8 +186,7 @@ pub fn (a &Array) free() {
 		return
 	}
 	mut box := a.box
-	if !box.freed {
-		box.freed = true
+	if C.mlx_v_atomic_xchg_freed(unsafe { &box.freed }) == 0 {
 		C.mlx_array_free(box.ctx)
 		C.mlx_v_note_box_free()
 	}

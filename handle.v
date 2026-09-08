@@ -21,7 +21,7 @@ struct HandleBox {
 mut:
 	ctx     voidptr
 	free_fn HandleFreeFn = unsafe { nil }
-	freed   bool
+	freed   int
 	owned   bool
 	cached  bool
 }
@@ -30,6 +30,18 @@ mut:
 fn handle_finalizer(obj voidptr, _cd voidptr) {
 	mut box := unsafe { &HandleBox(obj) }
 	box.release()
+}
+
+// release is the single release entry point for a HandleBox.  The handled
+// `freed` flag is set atomically, so a concurrent finalizer (GC thread) and a
+// deterministic free() can never both release the C handle.
+fn (mut box HandleBox) release() {
+	if C.mlx_v_atomic_xchg_freed(unsafe { &box.freed }) == 0 {
+		if box.owned {
+			box.free_fn(box.ctx)
+			C.mlx_v_note_handle_free()
+		}
+	}
 }
 
 // wrap_handle boxes a raw MLX handle and registers its finalizer.  `owned`
@@ -46,24 +58,13 @@ fn wrap_handle(ctx voidptr, free_fn HandleFreeFn, owned bool) &HandleBox {
 	mut box := unsafe { &HandleBox(C.mlx_v_gc_malloc(sizeof(HandleBox))) }
 	box.ctx = ctx
 	box.free_fn = free_fn
-	box.freed = false
+	box.freed = 0
 	box.owned = owned
 	box.cached = !owned
 	register_finalizer(box, handle_finalizer)
 	return box
 }
 
-// release frees the boxed handle once.  Non-owned boxes are only marked, so
-// shared handles outlive their wrappers.  Call it from the wrappers' free()
-// methods via `mut box := x.box` (the Array.free idiom).
-fn (mut box HandleBox) release() {
-	if !box.freed {
-		box.freed = true
-		if box.owned {
-			box.free_fn(box.ctx)
-		}
-	}
-}
 
 // free_*_handle adapt the typed C free functions to the HandleFreeFn
 // signature (all MLX handles share the `struct { void *ctx }` layout).

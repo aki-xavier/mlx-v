@@ -1,5 +1,6 @@
 module mlx
 
+
 // ops.v — ergonomic wrappers around the core MLX array operations.
 
 // --- internal helpers --------------------------------------------------------
@@ -8,13 +9,13 @@ module mlx
 // override installed by Stream.set_default() when one is active, otherwise the
 // cached default stream selected by the use_cpu()/use_gpu() switch (see mlx.c).
 @[inline]
-fn def_stream() C.mlx_stream {
+pub fn def_stream() C.mlx_stream {
 	return C.mlx_v_stream_for_ops()
 }
 
 // new_result prepares error state and returns an empty result array handle.
 @[inline]
-fn new_result() C.mlx_array {
+pub fn new_result() C.mlx_array {
 	setup()
 	begin_op()
 	return C.mlx_array_new()

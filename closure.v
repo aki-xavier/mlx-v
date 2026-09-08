@@ -19,6 +19,12 @@ fn C.mlx_closure_new_func_payload(fun ClosureFuncPayload, payload voidptr, dtor 
 pub struct Closure {
 mut:
 	box &HandleBox = unsafe { nil }
+	// f keeps the V-side function explicitly owned: the C payload is the
+	// address of a function value, and holding the copy here pins it for the
+	// lifetime of this Closure (no reliance on conservative GC scanning of the
+	// C-side pointer).
+pub mut:
+	f Func
 }
 
 // raw returns the underlying MLX handle (low level).
@@ -37,7 +43,8 @@ pub fn new_closure(f Func) Closure {
 	setup()
 	return Closure{
 		box: wrap_handle(C.mlx_closure_new_func_payload(closure_thunk, voidptr(f), 0).ctx,
-			free_closure_handle, true)
+			free_closure_handle, true),
+		f: f,
 	}
 }
 

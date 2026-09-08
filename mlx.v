@@ -121,19 +121,19 @@ fn c_error_handler(msg &char, _data voidptr) {
 // setup installs the V error handler.  mlx.c guards the process-global
 // mlx_set_error_handler call with pthread_once, so this is cheap to repeat.
 @[inline]
-fn setup() {
+pub fn setup() {
 	C.mlx_v_ensure_error_handler(c_error_handler)
 }
 
 // begin_op resets the recorded error before an op runs.
 @[inline]
-fn begin_op() {
+pub fn begin_op() {
 	C.mlx_v_clear_error()
 }
 
 // check panics with the recorded MLX message when an op returns non-zero.
 @[inline]
-fn check(rc int) {
+pub fn check(rc int) {
 	if rc != 0 {
 		panic('MLX error: ${cstr(C.mlx_v_get_error())}')
 	}
@@ -143,7 +143,7 @@ fn check(rc int) {
 // on error the handle is released before panicking, so the error path does
 // not leak it.
 @[inline]
-fn check_res(rc int, res C.mlx_array) {
+pub fn check_res(rc int, res C.mlx_array) {
 	if rc != 0 {
 		C.mlx_array_free(res)
 		check(rc)
@@ -152,7 +152,7 @@ fn check_res(rc int, res C.mlx_array) {
 
 // check_res2 is check_res() for two-output ops.
 @[inline]
-fn check_res2(rc int, r0 C.mlx_array, r1 C.mlx_array) {
+pub fn check_res2(rc int, r0 C.mlx_array, r1 C.mlx_array) {
 	if rc != 0 {
 		C.mlx_array_free(r0)
 		C.mlx_array_free(r1)

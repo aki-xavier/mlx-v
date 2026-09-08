@@ -1,4 +1,6 @@
-module mlx
+module mlx_ops
+
+import mlx { Array, array_f32, f32_scalar }
 
 // Thin scalar-broadcast helpers over `Array`.  V forbids mixed-type operator
 // methods, so these free functions cover `array OP scalar` elementwise ops.

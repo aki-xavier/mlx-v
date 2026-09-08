@@ -1,4 +1,6 @@
-module mlx
+module mlx_ops
+
+import mlx { Array, Dtype, begin_op, check, check_res, check_res2, def_stream, empty, sel1, setup, wrap_array }
 
 // random.v — pseudo-random number generation.
 

@@ -89,6 +89,34 @@ int mlx_v_get_live_boxes(void) {
     return atomic_load(&mlx_v_live_boxes);
 }
 
+/* Atomically marks a V wrapper-box `freed` flag and returns its previous
+ * value.  Guards the finalizer-vs-free() race: whichever of the two release
+ * paths wins gets the old value 0 and performs the C-side release exactly
+ * once, even if the Boehm finalizer runs on the GC thread concurrently. */
+int mlx_v_atomic_xchg_freed(int *p) {
+    return __atomic_exchange_n(p, 1, __ATOMIC_SEQ_CST);
+}
+
+/* Same pattern as mlx_v_live_boxes, but counts HandleBox (non-array handles:
+ * streams, devices, closures, ...) so leak detection can cover them too. */
+static atomic_int mlx_v_live_handles = 0;
+
+void mlx_v_note_handle_alloc(void) {
+    atomic_fetch_add(&mlx_v_live_handles, 1);
+}
+
+void mlx_v_note_handle_free(void) {
+    int v = atomic_load(&mlx_v_live_handles);
+    while (v > 0 &&
+           !atomic_compare_exchange_weak(&mlx_v_live_handles, &v, v - 1)) {
+        // retry on contention; never let the counter go negative
+    }
+}
+
+int mlx_v_get_live_handles(void) {
+    return atomic_load(&mlx_v_live_handles);
+}
+
 /* Cached default streams.  mlx_default_*_stream_new() heap-allocates a new
  * Stream wrapper on every call, and the wrappers are never freed by the V
  * bindings, so caching one wrapper per device avoids a per-op allocation leak.

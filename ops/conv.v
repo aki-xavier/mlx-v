@@ -1,4 +1,6 @@
-module mlx
+module mlx_ops
+
+import mlx { Array, check_res, def_stream, f32_scalar, new_result, wrap_array }
 
 // conv.v — convolution and padding operations.
 //

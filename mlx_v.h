@@ -25,6 +25,10 @@ float mlx_v_bf16_to_f32(uint16_t h);
 void mlx_v_note_box_alloc(void);
 void mlx_v_note_box_free(void);
 int mlx_v_get_live_boxes(void);
+int mlx_v_atomic_xchg_freed(int *p);
+void mlx_v_note_handle_alloc(void);
+void mlx_v_note_handle_free(void);
+int mlx_v_get_live_handles(void);
 
 mlx_stream mlx_v_cached_cpu_stream(void);
 mlx_stream mlx_v_cached_gpu_stream(void);

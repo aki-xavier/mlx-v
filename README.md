@@ -207,3 +207,11 @@ python3 gen/gen_cdefs.py
   `value_and_grad`/`jvp`/`vjp`/`compile`/`checkpoint` panics, and that panic
   escapes MLX's C callback boundary (no C++ stack unwinding), aborting the
   process.  Keep those functions free of failing ops.
+
+## 模块布局
+
+- **`mlx`**（本目录）：核心运行时 —— `Array`/`Device`/`Stream`/`Closure`、盒+终结器
+  的 GC 资源管理（`live_arrays()`/`live_handles()` 泄漏检测）、以及全部 `Array` 方法
+  （V 要求方法定义在类型所在模块）。
+- **`ops/`（`mlx_ops`）**：计算层纯函数 —— `random` / `conv` / `scalar_ops`。
+  只用核心、不用这些算子的下游只需 `import mlx`。

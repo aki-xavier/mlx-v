@@ -20,6 +20,14 @@ module mlx
 #flag -I$MLX_INCLUDE_DIR
 #flag -L$MLX_LIB_DIR
 #flag -lmlxc
+// The C wrapper calls the Boehm collector directly (GC_malloc, GC_gcollect,
+// GC_register_finalizer), so this library declares the collector it uses.  Keeping the
+// dependency here rather than relying on the host program's own GC selection is what
+// makes it independent of how the program was built: a program that does not select the
+// V collector would otherwise link no collector at all, and the wrapper would fail to
+// link on exactly those three symbols.
+#flag -L/opt/homebrew/lib
+#flag -lgc
 #include "mlx/c/mlx.h"
 
 // Tiny C helpers (thread-local error buffer, force-CPU flag, stream cache, GC).

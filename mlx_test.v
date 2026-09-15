@@ -199,6 +199,38 @@ fn test_shape_ops() {
 	assert t.data_f32() == [f32(0), 3, 1, 4, 2, 5]
 }
 
+// test_shape_element_width guards the element width used to read mlx-c's
+// `const int*` shape/strides buffers.  Reading those through a 64-bit `int`
+// fuses adjacent int32 dims into one value (2x3 came back as 12884901890),
+// which only becomes visible with two or more non-trivial dimensions -- a 1-D
+// shape like [7] still reads back as 7, so square/simple shapes can look fine.
+fn test_shape_element_width() {
+	a := zeros([2, 3, 4], .float32)
+	defer {
+		a.free()
+	}
+	assert a.shape() == [2, 3, 4]
+	assert a.strides() == [usize(12), 4, 1]
+
+	// Large dims catch the high word of a mis-widened read.
+	b := zeros([1000, 2000], .float32)
+	defer {
+		b.free()
+	}
+	assert b.shape() == [1000, 2000]
+}
+
+// test_data_i32_roundtrip pins data_i32, which reads the same mis-widened
+// `int*` and returns int32 data widened to V `int`.
+fn test_data_i32_roundtrip() {
+	a := array_i32([i32(1), 2, 3, 4, 5, 6], [2, 3])
+	defer {
+		a.free()
+	}
+	assert a.shape() == [2, 3]
+	assert a.data_i32() == [1, 2, 3, 4, 5, 6]
+}
+
 fn test_softmax() {
 	a := array_f32([f32(1), 2, 3], [3])
 	defer {

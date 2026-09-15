@@ -2,6 +2,11 @@
 """Generate `cdefs.c.v` (raw mlx-c bindings) from the installed mlx-c headers.
 
 Run:  python3 gen/gen_cdefs.py
+
+The output is deliberately kept in this compact layout (one declaration per
+line, struct fields space-aligned) instead of `v fmt` style, which would insert
+a blank line between every declaration and double the file size.  Regenerating
+from unmodified headers should therefore produce no diff.
 """
 import os
 import re
@@ -112,12 +117,17 @@ OPAQUE = {
 }
 
 # Structs with a non-trivial field layout (field names/types, V side).
+#
+# Field widths must match the C definition exactly.  `value` in the optional
+# structs is a 32-bit C `int`/`mlx_dtype` followed by a `bool`, so it is `i32`:
+# declaring it as V's 64-bit `int` would give the struct the wrong size and move
+# `has_value` to the wrong offset whenever V constructs or copies one.
 STRUCT_FIELDS = {
     "mlx_map_string_to_array_iterator": "ctx voidptr\n\tmap_ctx voidptr",
     "mlx_map_string_to_string_iterator": "ctx voidptr\n\tmap_ctx voidptr",
-    "mlx_optional_int": "value int\n\thas_value bool",
+    "mlx_optional_int": "value i32\n\thas_value bool",
     "mlx_optional_float": "value f32\n\thas_value bool",
-    "mlx_optional_dtype": "value int\n\thas_value bool",
+    "mlx_optional_dtype": "value i32\n\thas_value bool",
 }
 
 # C enum types -> mapped to V `int` in signatures.
@@ -132,7 +142,7 @@ ENUMS = {
 EXTRA_TYPES = []
 
 
-def map_type(ty: str) -> str:
+def map_type(ty: str, as_return: bool = False) -> str:
     ty = ty.strip()
     # pointer / array suffix
     ptr = 0
@@ -148,6 +158,14 @@ def map_type(ty: str) -> str:
         return "voidptr" if ptr == 1 else ("&voidptr" if ptr == 2 else "voidptr")
     if base in SCALAR:
         v = SCALAR[base]
+        # C `int` is 32-bit, V's `int` is 64-bit.  For a *parameter* V's C-ABI
+        # shim converts a `[]int`/`&int` argument into a real `int*` for the
+        # call, so `&int` is safe and keeps call sites natural.  For a *return*
+        # value V binds the raw pointer with no conversion, so declaring an
+        # `int*` as `&int` makes every read 8 bytes wide at a 4-byte stride --
+        # e.g. shape (2, 2) came back as [8589934594, <garbage>].
+        if ptr >= 1 and as_return and v == "int":
+            v = "i32"
     elif base in OPAQUE or base in ENUMS or base in EXTRA_TYPES:
         if base in ENUMS:
             v = "int"
@@ -286,7 +304,7 @@ def build():
                 ret_v = ""
             else:
                 try:
-                    ret_v = map_type(ret) if ret else ""
+                    ret_v = map_type(ret, as_return=True) if ret else ""
                 except ValueError:
                     ret_v = None
                     print(f"  skip {name}: unmapped return {ret!r}", file=sys.stderr)
@@ -317,11 +335,15 @@ def build():
     lines.append("")
     for s in sorted(structs):
         if s in STRUCT_FIELDS:
-            fields = STRUCT_FIELDS[s]
+            flds = [fl.strip() for fl in STRUCT_FIELDS[s].split("\n")]
+            # Space-align the type column the way `v fmt` does, so that
+            # regenerating cdefs.v does not reflow every struct.
+            width = max(len(f.split(None, 1)[0]) for f in flds)
             lines.append("@[typedef]")
             lines.append(f"struct C.{s} {{")
-            for fl in fields.split("\n"):
-                lines.append("\t" + fl)
+            for fl in flds:
+                name, ty = fl.split(None, 1)
+                lines.append(f"\t{name.ljust(width)} {ty}")
             lines.append("}")
         else:
             lines.append("@[typedef]")

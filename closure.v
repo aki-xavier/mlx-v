@@ -24,7 +24,7 @@ mut:
 	// lifetime of this Closure (no reliance on conservative GC scanning of the
 	// C-side pointer).
 pub mut:
-	f Func
+	f Func = unsafe { nil }
 }
 
 // raw returns the underlying MLX handle (low level).

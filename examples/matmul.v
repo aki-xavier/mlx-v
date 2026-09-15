@@ -1,6 +1,7 @@
 module main
 
 import mlx
+import mlx_ops
 import time
 
 fn main() {
@@ -22,8 +23,8 @@ fn main() {
 	// Timed large matmul.
 	n := 2048
 	println('\nbenchmark ${n}x${n} @ ${n}x${n} (float32) ...')
-	x := mlx.random_normal([n, n], .float32, 0.0, 0.02, mlx.no_key())
-	y := mlx.random_normal([n, n], .float32, 0.0, 0.02, mlx.no_key())
+	x := mlx_ops.random_normal([n, n], .float32, 0.0, 0.02, mlx_ops.no_key())
+	y := mlx_ops.random_normal([n, n], .float32, 0.0, 0.02, mlx_ops.no_key())
 
 	sw := time.new_stopwatch()
 	z := x.matmul(y)

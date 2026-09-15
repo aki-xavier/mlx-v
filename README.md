@@ -72,6 +72,7 @@ it into `~/.vmodules`:
 
 ```sh
 ln -s "$PWD" ~/.vmodules/mlx
+ln -s "$PWD/ops" ~/.vmodules/mlx_ops   # compute layer, needed by e.g. examples/demo.v
 ```
 
 (Once published, the usual `v install --git <repo-url>` also works.)
@@ -101,8 +102,9 @@ c := mlx.ones([3], .float32)
 d := mlx.arange(0, 10, 2, .float32)
 e := mlx.full_value([2, 2], 3.14, .float32)
 s := mlx.f32_scalar(2.5)
-k := mlx.random_key(42)
-n := mlx.random_normal([4, 4], .float32, 0.0, 0.02, k)
+// Random numbers live in the compute layer (`import mlx_ops`)
+k := mlx_ops.random_key(42)
+n := mlx_ops.random_normal([4, 4], .float32, 0.0, 0.02, k)
 
 // Elementwise + operators
 x := a + b            // .add(b)
@@ -166,7 +168,8 @@ release in hot loops).  Copies of a wrapper share the same handle.
 | `closure.v` | `Func`/`Closure`, the V-function → MLX-closure bridge |
 | `transforms.v` | `value_and_grad` / `jvp` / `vjp` / `compile` / `checkpoint` |
 | `device.v`, `stream.v`, `vector.v`, `map.v` | supporting types |
-| `random.v`, `linalg.v`, `fft.v`, `fast.v`, `io.v`, `memory.v`, `compile.v` | domain wrappers |
+| `linalg.v`, `fft.v`, `fast.v`, `io.v`, `memory.v`, `compile.v` | domain wrappers |
+| `ops/` (module `mlx_ops`) | compute layer split out of `mlx`: `random.v`, `conv.v`, `scalar_ops.v` |
 | `mlx.c`, `mlx_v.h` | tiny C helpers (thread-local error buffer, CPU flag, stream cache + override, half→float, GC) |
 
 ## Regenerating the raw bindings

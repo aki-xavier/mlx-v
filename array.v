@@ -243,7 +243,7 @@ pub fn (a Array) shape() []int {
 	mut out := []int{len: n}
 	unsafe {
 		for i in 0 .. n {
-			out[i] = ptr[i]
+			out[i] = int(ptr[i])
 		}
 	}
 	return out
@@ -355,7 +355,7 @@ pub fn (a Array) data_i32() []int {
 	mut out := []int{len: n}
 	unsafe {
 		for i in 0 .. n {
-			out[i] = ptr[i]
+			out[i] = int(ptr[i])
 		}
 	}
 	return out

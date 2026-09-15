@@ -129,7 +129,7 @@ struct C.mlx_node_namer {
 
 @[typedef]
 struct C.mlx_optional_dtype {
-	value     int
+	value     i32
 	has_value bool
 }
 
@@ -141,7 +141,7 @@ struct C.mlx_optional_float {
 
 @[typedef]
 struct C.mlx_optional_int {
-	value     int
+	value     i32
 	has_value bool
 }
 
@@ -207,7 +207,7 @@ fn C.mlx_array_itemsize(arr C.mlx_array) usize
 fn C.mlx_array_size(arr C.mlx_array) usize
 fn C.mlx_array_nbytes(arr C.mlx_array) usize
 fn C.mlx_array_ndim(arr C.mlx_array) usize
-fn C.mlx_array_shape(arr C.mlx_array) &int
+fn C.mlx_array_shape(arr C.mlx_array) &i32
 fn C.mlx_array_strides(arr C.mlx_array) &usize
 fn C.mlx_array_dim(arr C.mlx_array, dim int) int
 fn C.mlx_array_dtype(arr C.mlx_array) int
@@ -230,7 +230,7 @@ fn C.mlx_array_data_uint32(arr C.mlx_array) &u32
 fn C.mlx_array_data_uint64(arr C.mlx_array) &u64
 fn C.mlx_array_data_int8(arr C.mlx_array) &i8
 fn C.mlx_array_data_int16(arr C.mlx_array) &i16
-fn C.mlx_array_data_int32(arr C.mlx_array) &int
+fn C.mlx_array_data_int32(arr C.mlx_array) &i32
 fn C.mlx_array_data_int64(arr C.mlx_array) &i64
 fn C.mlx_array_data_float32(arr C.mlx_array) &f32
 fn C.mlx_array_data_float64(arr C.mlx_array) &f64

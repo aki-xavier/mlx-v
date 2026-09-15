@@ -1,6 +1,7 @@
 module main
 
 import mlx
+import mlx_ops
 
 fn main() {
 	println('=== mlx-v demo ===')
@@ -40,8 +41,8 @@ fn main() {
 	println('arange.reshape = ${r}')
 
 	// random
-	k := mlx.random_key(42)
-	x := mlx.random_normal([3, 3], .float32, 0.0, 1.0, k)
+	k := mlx_ops.random_key(42)
+	x := mlx_ops.random_normal([3, 3], .float32, 0.0, 1.0, k)
 	println('random_normal shape = ${x.shape()}')
 
 	// linalg (some decompositions are CPU-only in MLX)

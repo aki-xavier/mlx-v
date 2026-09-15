@@ -11,7 +11,7 @@ module mlx
 // PayloadPair is the user-supplied callback plus its instance pointer.
 pub struct PayloadPair {
 pub:
-	f    fn (xs []Array, data voidptr) []Array
+	f    fn (xs []Array, data voidptr) []Array @[required]
 	data voidptr
 }
 

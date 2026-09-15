@@ -1,0 +1,23 @@
+# Lint configuration for the binding generator (`gen/gen_cdefs.py`), the only
+# Python in this repository.
+#
+# The rule set is pinned explicitly because Ruff's defaults change between
+# releases (0.16.7 enables 413 rules by default), which would otherwise make
+# `ruff check` results depend on whichever version happens to be installed.
+target-version = "py39"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors (incl. E501 line length)
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes: undefined names, unused variables/imports
+    "I",    # import sorting
+    "B",    # flake8-bugbear: likely bugs and design problems
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "UP",   # pyupgrade
+    "RUF",  # Ruff-specific
+    "EXE",  # shebang / executable-bit consistency
+    "FURB", # refurb
+    "PIE",  # flake8-pie
+]

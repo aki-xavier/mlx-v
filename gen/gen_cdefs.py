@@ -167,10 +167,7 @@ def map_type(ty: str, as_return: bool = False) -> str:
         if ptr >= 1 and as_return and v == "int":
             v = "i32"
     elif base in OPAQUE or base in ENUMS or base in EXTRA_TYPES:
-        if base in ENUMS:
-            v = "int"
-        else:
-            v = "C." + base
+        v = "int" if base in ENUMS else "C." + base
     elif base in STRUCT_FIELDS:
         v = "C." + base
     else:
@@ -217,7 +214,7 @@ SKIP = {
 
 
 def strip_comments(src: str) -> str:
-    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
     src = re.sub(r"//[^\n]*", "", src)
     return src
 
@@ -239,12 +236,11 @@ def parse_functions(src: str):
     src = strip_comments(src)
     src = strip_preprocessor(src)
     # remove typedef struct/enum blocks (they contain ';' and braces)
-    src = re.sub(r"typedef\s+struct\s+\{[^}]*\}\s*[^;]*;", "", src, flags=re.S)
-    src = re.sub(r"typedef\s+enum\s+\{[^}]*\}\s*[^;]*;", "", src, flags=re.S)
+    src = re.sub(r"typedef\s+struct\s+\{[^}]*\}\s*[^;]*;", "", src, flags=re.DOTALL)
+    src = re.sub(r"typedef\s+enum\s+\{[^}]*\}\s*[^;]*;", "", src, flags=re.DOTALL)
     # join multi-line prototypes: a prototype ends with ');'
     # Split on ';' then filter chunks containing '(' and 'mlx_'
     decls = re.split(r";", src)
-    out = []
     for d in decls:
         d = d.strip()
         if "(" not in d or ")" not in d:
@@ -258,7 +254,7 @@ def parse_functions(src: str):
         if not m:
             continue
         name = m.group(1)
-        if not (name.startswith("mlx") or name.startswith("_mlx")):
+        if not name.startswith(("mlx", "_mlx")):
             continue
         if name in SKIP:
             continue
@@ -278,7 +274,7 @@ def map_params(params_raw: str):
     for p in parts:
         if not p:
             continue
-        # each part looks like: "const int* shape" or "mlx_array* res" or "size_t axes_num"
+        # each part looks like: "const int* shape" or "mlx_array* res"
         # last token = param name
         toks = p.split()
         name = toks[-1]
@@ -331,7 +327,10 @@ def build():
     lines.append("")
     lines.append("module mlx")
     lines.append("")
-    lines.append("// C struct typedefs (all opaque handles share a single `void* ctx`).")
+    # Wrapped (not shortened) so the emitted comment stays byte-identical.
+    lines.append(
+        "// C struct typedefs (all opaque handles share a single `void* ctx`)."
+    )
     lines.append("")
     for s in sorted(structs):
         if s in STRUCT_FIELDS:

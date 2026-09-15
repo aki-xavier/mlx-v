@@ -1,0 +1,18 @@
+# clangd configuration for the hand-written C helpers in this module
+# (`mlx.c` and `mlx_v.h`), which are edited as C in the IDE.
+#
+# `v` learns its include paths from the `#flag -I...` lines in mlx.v, but clangd
+# never reads V source, so without this it reports
+#
+#     'mlx/c/mlx.h' file not found
+#
+# on line 10 of mlx_v.h, which then cascades into "unknown type name
+# 'mlx_stream'" for everything the header declares.
+#
+# This mirrors the default in mlx.v (/opt/homebrew/include, Homebrew on Apple
+# Silicon).  Intel Homebrew is already covered by clang's built-in
+# /usr/local/include; for a custom MLX build, add your own -I here, since clangd
+# cannot expand the MLX_INCLUDE_DIR environment variable.
+CompileFlags:
+  Add:
+    - -I/opt/homebrew/include
